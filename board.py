@@ -22,6 +22,21 @@ class CardColumn:
             return True
         return False
 
+    def n_cards(self) -> int:
+        return len(self.cards)
+
+    def render(self, screen, pos: list[int, int]):
+        gap = self.cards[0].image.get_height() * 0.26
+        for i in range(self.n_cards() - 1):
+            pos[1] += gap
+            screen.blit(self.cards[i].image, pos)
+
+        pos[1] += gap
+        screen.blit(
+            self.top().image,
+            pos,
+        )
+
 
 class Foundation:
     def __init__(self, suite: c.CardSuite):
@@ -84,7 +99,29 @@ class board:
 
     def render(self, screen):
         screen.blit(self.background, (0, 0))
-        screen.blit(self.columns[0].top().load, (50, 50))
+        pos = [0, 0]
+        i = 0
+        for column in self.columns:
+            width = column.top().image.get_width()
+            heigth = column.top().image.get_height()
+            pos[0] = 50 + (width + 50) * (i % 7)
+            pos[1] = 50 + (heigth * 2) * (i // 7)
+            column.render(screen, pos)
+            i += 1
+        # mouse_pos = pygame.mouse.get_pos()
+        # initial_pos = [
+        #     50,
+        #     50 + 726 * 0.2 * 0.26 * (len(self.columns[0].cards) - 1),
+        # ]
+        # if pygame.mouse.get_pressed()[0]:
+        #     pos = mouse_pos
+        # else:
+        #     pos = initial_pos
+
+        # screen.blit(
+        #     self.columns[0].top().load,
+        #     pos,
+        # )
 
 
 if __name__ == "__main__":

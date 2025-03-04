@@ -45,7 +45,7 @@ class Card:
     def __init__(self, cardValue: CardValue, cardSuite: CardSuite):
         self.cardValue = cardValue
         self.cardSuite = cardSuite
-        self.load = pygame.transform.smoothscale_by(
+        self.image = pygame.transform.smoothscale_by(
             pygame.image.load(self.__str__()), 0.2
         )
 

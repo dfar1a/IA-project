@@ -1,4 +1,5 @@
 import pygame
+import board as b
 
 
 def main():
@@ -7,6 +8,7 @@ def main():
     screen = pygame.display.set_mode((1280, 720))
     clock = pygame.time.Clock()
     running = True
+    board = b.board()
 
     while running:
         # poll for events
@@ -16,7 +18,7 @@ def main():
                 running = False
 
         # fill the screen with a color to wipe away anything from last frame
-        screen.fill("purple")
+        board.render(screen)
 
         # RENDER YOUR GAME HERE
 

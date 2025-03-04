@@ -1,3 +1,5 @@
+import pygame
+
 card_resources = "resources/cards/"
 image_extension = ".png"
 
@@ -10,13 +12,13 @@ class CardValue:
     king = 13
 
     def __init__(self, value: int):
-        self.value
+        self.value = value
 
     def __str__(self):
-        if self.value > 1 or self.value < 11:
+        if self.value > 1 and self.value < 11:
             return str(self.value)
         else:
-            return self.names[self.value]
+            return CardValue.names[self.value]
 
     def __eq__(self, other):
         return self.value == other.value
@@ -33,7 +35,7 @@ class CardSuite:
         self.value = value
 
     def __str__(self):
-        return self.names[self.value]
+        return CardSuite.names[self.value]
 
     def __eq__(self, other):
         return self.value == other.value
@@ -43,6 +45,9 @@ class Card:
     def __init__(self, cardValue: CardValue, cardSuite: CardSuite):
         self.cardValue = cardValue
         self.cardSuite = cardSuite
+        self.load = pygame.transform.smoothscale_by(
+            pygame.image.load(self.__str__()), 0.2
+        )
 
     def prev(self):
         return CardValue(self.cardValue.value - 1)
@@ -52,5 +57,9 @@ class Card:
 
     def __str__(self):
         return (
-            card_resources + self.cardValue + "_of_" + self.cardsuite + image_extension
+            card_resources
+            + self.cardValue.__str__()
+            + "_of_"
+            + self.cardSuite.__str__()
+            + image_extension
         )

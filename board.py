@@ -39,9 +39,11 @@ class CardColumn:
 
 
 class Foundation:
-    def __init__(self, suite: c.CardSuite):
+    def __init__(self, suite: c.CardSuite, x, y):
         self.cards = list()
         self.suite = suite
+        self.x = x
+        self.y = y
 
     def top(self) -> c.Card:
         return self.cards[-1]
@@ -55,6 +57,10 @@ class Foundation:
     def isFull(self) -> bool:
         return self.top().cardValue.value == c.CardValue.king
 
+    def draw(self, screen) -> None:
+        if len(self.cards) != 0:
+            screen.blit(self.top().image, (self.x, self.y))
+
 
 class board:
     background = pygame.image.load("resources/background.jpg")
@@ -62,7 +68,10 @@ class board:
     def __init__(self):
         deck = list()
         self.columns = list()
-        self.foundations = [Foundation(suite) for suite in range(4)]
+
+        self.foundations = [
+            Foundation(suite, 1100, 150 * suite + 50) for suite in range(4)
+        ]
 
         for i in range(52):
             cv = c.CardValue(i // 4 + 1)
@@ -108,6 +117,9 @@ class board:
             pos[1] = 50 + (heigth * 2) * (i // 7)
             column.render(screen, pos)
             i += 1
+
+        for found in self.foundations:
+            found.draw(screen)
         # mouse_pos = pygame.mouse.get_pos()
         # initial_pos = [
         #     50,

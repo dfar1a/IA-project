@@ -1,6 +1,7 @@
 import pygame
 import board as b
-import menu as m 
+import menu as m
+
 
 def main():
     """Function to run the actual game loop after selecting 'Jogar' from the menu."""
@@ -8,8 +9,9 @@ def main():
     screen = pygame.display.set_mode((1280, 720))
     clock = pygame.time.Clock()
     running = True
-    game_board = b.board() 
+    game_board = b.board()
 
+    i = 0
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -24,6 +26,6 @@ def main():
 
     pygame.quit()
 
-if __name__ == "__main__":
-    m.menu()  
 
+if __name__ == "__main__":
+    m.menu()

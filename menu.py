@@ -1,6 +1,6 @@
 import pygame
 import sys
-import game as g 
+import game as g
 
 pygame.init()
 
@@ -14,6 +14,7 @@ FONT = pygame.font.Font(None, 50)
 BACKGROUND = pygame.image.load("resources/menu.jpg")
 BACKGROUND = pygame.transform.scale(BACKGROUND, (WIDTH, HEIGHT))
 
+
 class Button:
     def __init__(self, text, pos, callback):
         self.text = text
@@ -22,9 +23,13 @@ class Button:
         self.rect = pygame.Rect(pos[0], pos[1], BUTTON_WIDTH, BUTTON_HEIGHT)
 
     def draw(self, screen):
-        color = BUTTON_HOVER_COLOR if self.rect.collidepoint(pygame.mouse.get_pos()) else BUTTON_COLOR
+        color = (
+            BUTTON_HOVER_COLOR
+            if self.rect.collidepoint(pygame.mouse.get_pos())
+            else BUTTON_COLOR
+        )
         pygame.draw.rect(screen, color, self.rect, border_radius=10)
-        
+
         text_surface = FONT.render(self.text, True, WHITE)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
@@ -33,24 +38,29 @@ class Button:
         if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos):
             self.callback()
 
+
 def start_game():
-    pygame.quit() 
+    pygame.quit()
     g.main()
 
+
 def show_help():
-    printf("nao implementado")
+    print("nao implementado")
+
 
 def show_high_score():
-    printf("nao implementado")
+    print("nao implementado")
+
 
 def show_more_games():
     print("nao implementado")
 
+
 buttons = [
-    Button("Jogar", (WIDTH//2 - BUTTON_WIDTH//2, 250), start_game),
-    Button("Ajuda", (WIDTH//2 - BUTTON_WIDTH//2, 350), show_help),
-    Button("Pontuação Máx.", (WIDTH//2 - BUTTON_WIDTH//2, 450), show_high_score),
-    Button("Mais Jogos", (WIDTH//2 - BUTTON_WIDTH//2, 550), show_more_games),
+    Button("Jogar", (WIDTH // 2 - BUTTON_WIDTH // 2, 250), start_game),
+    Button("Ajuda", (WIDTH // 2 - BUTTON_WIDTH // 2, 350), show_help),
+    Button("Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 450), show_high_score),
+    Button("Mais Jogos", (WIDTH // 2 - BUTTON_WIDTH // 2, 550), show_more_games),
 ]
 
 
@@ -60,7 +70,7 @@ def menu():
 
     while True:
         screen.blit(BACKGROUND, (0, 0))
-        
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -72,6 +82,7 @@ def menu():
             button.draw(screen)
 
         pygame.display.flip()
+
 
 if __name__ == "__main__":
     menu()

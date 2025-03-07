@@ -4,6 +4,8 @@ import pygame
 
 
 class CardColumn:
+    gap = c.Card.height * 0.26
+
     def __init__(self, cards: list[c.Card]):
         self.cards = cards.copy()
 
@@ -26,16 +28,22 @@ class CardColumn:
         return len(self.cards)
 
     def render(self, screen, pos: list[int, int]):
-        gap = self.cards[0].image.get_height() * 0.26
+
         for i in range(self.n_cards() - 1):
-            pos[1] += gap
+            pos[1] += self.gap
             screen.blit(self.cards[i].image, pos)
 
-        pos[1] += gap
+        pos[1] += self.gap
         screen.blit(
             self.top().image,
             pos,
         )
+
+    def __str__(self):
+        res = ""
+        for card in self.cards:
+            res += card.__str__() + "\n"
+        return res
 
 
 class Foundation:
@@ -63,7 +71,11 @@ class Foundation:
 
 
 class board:
+    import game as g
+
     background = pygame.image.load("resources/background.jpg")
+    horizontal_margin_columns = g.WIDTH / 26
+    vertical_margin_columns = g.HEIGHT / 10
 
     def __init__(self):
         deck = list()
@@ -113,8 +125,8 @@ class board:
         for column in self.columns:
             width = column.top().image.get_width()
             heigth = column.top().image.get_height()
-            pos[0] = 50 + (width + 50) * (i % 7)
-            pos[1] = 50 + (heigth * 2) * (i // 7)
+            pos[0] = (width + board.horizontal_margin_columns) * (i % 7 + 1)
+            pos[1] = board.vertical_margin_columns + (heigth * 2) * (i // 7)
             column.render(screen, pos)
             i += 1
 

@@ -1,15 +1,20 @@
 import pygame
 import board as b
 import menu as m
+import solver as s
+
+WIDTH = 1280
+HEIGHT = 720
 
 
 def main():
     """Function to run the actual game loop after selecting 'Jogar' from the menu."""
     pygame.init()
-    screen = pygame.display.set_mode((1280, 720))
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
     running = True
     game_board = b.board()
+    s.test(game_board)
 
     i = 0
     while running:

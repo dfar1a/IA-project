@@ -42,11 +42,15 @@ class CardSuite:
 
 
 class Card:
+    scale_factor = 0.2
+    width = 500 * scale_factor
+    height = 726 * scale_factor
+
     def __init__(self, cardValue: CardValue, cardSuite: CardSuite):
         self.cardValue = cardValue
         self.cardSuite = cardSuite
         self.image = pygame.transform.smoothscale_by(
-            pygame.image.load(self.__str__()), 0.2
+            pygame.image.load(self.__str__()), Card.scale_factor
         )
 
     def prev(self):
@@ -63,3 +67,6 @@ class Card:
             + self.cardSuite.__str__()
             + image_extension
         )
+
+    def __eq__(self, other):
+        return self.cardValue == other.cardValue and self.cardSuite == other.cardSuite

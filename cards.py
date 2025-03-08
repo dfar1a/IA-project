@@ -23,9 +23,12 @@ class CardValue:
     def __eq__(self, other):
         return self.value == other.value
 
+    def __hash__(self):
+        return hash(self.value)
+
 
 class CardSuite:
-    names = {0: "clubs", 1: "spades", 2: "hearts", 3: "diamonds"}
+    suites = {0: "clubs", 1: "spades", 2: "hearts", 3: "diamonds"}
     clubs = 0
     spades = 1
     hearts = 2
@@ -35,23 +38,22 @@ class CardSuite:
         self.value = value
 
     def __str__(self):
-        return CardSuite.names[self.value]
+        return CardSuite.suites[self.value]
 
     def __eq__(self, other):
         return self.value == other.value
 
+    def __hash__(self):
+        return hash(self.value)
+
+    def get_suites() -> set[int]:
+        return CardSuite.suites.keys()
+
 
 class Card:
-    scale_factor = 0.2
-    width = 500 * scale_factor
-    height = 726 * scale_factor
-
     def __init__(self, cardValue: CardValue, cardSuite: CardSuite):
         self.cardValue = cardValue
         self.cardSuite = cardSuite
-        self.image = pygame.transform.smoothscale_by(
-            pygame.image.load(self.__str__()), Card.scale_factor
-        )
 
     def prev(self):
         return CardValue(self.cardValue.value - 1)
@@ -60,13 +62,10 @@ class Card:
         return CardValue(self.cardValue.value + 1)
 
     def __str__(self):
-        return (
-            card_resources
-            + self.cardValue.__str__()
-            + "_of_"
-            + self.cardSuite.__str__()
-            + image_extension
-        )
+        return +self.cardValue.__str__() + "_of_" + self.cardSuite.__str__()
 
     def __eq__(self, other):
         return self.cardValue == other.cardValue and self.cardSuite == other.cardSuite
+
+    def __hash__(self):
+        return hash((self.cardValue, self.cardSuite))

@@ -11,7 +11,7 @@ BUTTON_HOVER_COLOR = (255, 50, 50)
 WHITE = (255, 255, 255)
 FONT = pygame.font.Font(None, 50)
 
-BACKGROUND = pygame.image.load("resources/menu.jpg")
+BACKGROUND = pygame.image.load("resources/menu2.jpg")
 BACKGROUND = pygame.transform.scale(BACKGROUND, (WIDTH, HEIGHT))
 
 

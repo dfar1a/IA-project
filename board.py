@@ -1,9 +1,4 @@
 import cards as c
-import pygame
-
-# Define screen dimensions
-WIDTH = 1400
-HEIGHT = 1000  # Increased height for better spacing
 
 
 class CardColumn:
@@ -63,34 +58,6 @@ class Foundation:
 
 
 class Board:
-    background = pygame.image.load("resources/background.jpg")
-
     def __init__(self, columns: list[CardColumn], foundations: list[Foundation]):
         self.columns = columns
         self.foundations = foundations
-
-    def move_card_column_column(
-        self, card: c.Card, from_column: CardColumn, to_column: CardColumn
-    ) -> bool:
-        """Moves the top card from one column to another if the move is valid."""
-        if from_column.is_empty():
-            return False  # No card to move
-
-        if to_column.insert(card):
-            from_column.pop()  # Remove only if move is valid
-            return True
-
-        return False  # Invalid move
-
-    def move_card_column_foundation(
-        self, card: c.Card, from_column: CardColumn, foundation: Foundation
-    ) -> bool:
-        """Moves a card from a column to a foundation if valid."""
-        if from_column.is_empty():
-            return False
-
-        if foundation.insert(card):
-            from_column.pop()  # Remove only if move is valid
-            return True
-
-        return False  # Invalid move

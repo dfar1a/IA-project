@@ -50,6 +50,7 @@ def main():
                 if selected_card:
                     valid_move = False
 
+                    original_column.view.cards.append(selected_card.view)
                     # Check if moved to another column
                     for col in game_board.columns:
                         col_x, col_y = col.view.pos

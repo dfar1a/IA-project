@@ -29,9 +29,10 @@ class ColumnController:
         x = self.view.pos[0]
         y = self.view.pos[1]
 
-        if x <= mouse_x <= x + v.CardView.width:
+        if x <= mouse_x <= x + v.CardView.width and len(self.cards) != 0:
             pos_y = y + (self.model.n_cards() - 1) * self.view.gap
             if pos_y <= mouse_y <= pos_y + v.CardView.height:
+                self.view.cards.pop()
                 return self.cards[-1]
         return None
 

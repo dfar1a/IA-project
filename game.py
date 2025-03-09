@@ -31,19 +31,19 @@ def main():
                 running = False
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                card, column = game_board.model.get_clicked_card(
-                    event.pos[0], event.pos[1]
-                )
+                card, column = game_board.get_clicked_card(event.pos[0], event.pos[1])
+
                 if card:
+                    col_x, col_y = column.view.pos
                     selected_card = card
                     selected_column = column
                     original_column = (
                         column  # Save the original column for invalid moves
                     )
                     dragging = True
-                    drag_offset_x = event.pos[0] - column.x
+                    drag_offset_x = event.pos[0] - col_x
                     drag_offset_y = event.pos[1] - (
-                        column.y + (column.n_cards() - 1) * column.gap
+                        col_y + (column.model.n_cards() - 1) * column.view.gap
                     )
 
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -51,12 +51,13 @@ def main():
                     valid_move = False
 
                     # Check if moved to another column
-                    for col in game_board.model.columns:
+                    for col in game_board.columns:
+                        col_x, col_y = col.view.pos
                         if (
-                            col.x <= event.pos[0] <= col.x + c.Card.width
-                            and col.y <= event.pos[1] <= col.y + c.Card.height
+                            col_x <= event.pos[0] <= col_x + v.CardView.width
+                            and col_y <= event.pos[1] <= col_y + v.CardView.height
                         ):
-                            if game_board.model.move_card_column_column(
+                            if game_board.move_card_column_column(
                                 selected_card, original_column, col
                             ):
                                 valid_move = True
@@ -64,16 +65,15 @@ def main():
 
                     # Check if moved to a foundation
                     if not valid_move:
-                        for foundation in game_board.model.foundations:
+                        for foundation in game_board.foundations:
+                            found_x, found_y = foundation.view.pos
                             if (
-                                foundation.x
-                                <= event.pos[0]
-                                <= foundation.x + v.CardView.width
-                                and foundation.y
+                                found_x <= event.pos[0] <= found_x + v.CardView.width
+                                and found_y
                                 <= event.pos[1]
-                                <= foundation.y + v.CardView.height
+                                <= found_y + v.CardView.height
                             ):
-                                if game_board.model.move_card_column_foundation(
+                                if game_board.move_card_column_foundation(
                                     selected_card, original_column, foundation
                                 ):
                                     valid_move = True
@@ -91,7 +91,8 @@ def main():
         # Draw dragging card
         if dragging and selected_card:
             screen.blit(
-                selected_card.image, (mouse_x - drag_offset_x, mouse_y - drag_offset_y)
+                selected_card.view.image,
+                (mouse_x - drag_offset_x, mouse_y - drag_offset_y),
             )
 
         pygame.display.update()

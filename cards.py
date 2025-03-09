@@ -46,8 +46,8 @@ class CardSuite:
     def __hash__(self):
         return hash(self.value)
 
-    def get_suites() -> set[int]:
-        return CardSuite.suites.keys()
+    def get_suites() -> list[int]:
+        return list(CardSuite.suites.keys())
 
 
 class Card:
@@ -62,7 +62,7 @@ class Card:
         return CardValue(self.cardValue.value + 1)
 
     def __str__(self):
-        return +self.cardValue.__str__() + "_of_" + self.cardSuite.__str__()
+        return self.cardValue.__str__() + "_of_" + self.cardSuite.__str__()
 
     def __eq__(self, other):
         return self.cardValue == other.cardValue and self.cardSuite == other.cardSuite

@@ -1,6 +1,6 @@
 import pygame
-import board as b
 import cards as c
+import view as v
 import controller as control
 
 # Increased window size for better spacing and proper alignment
@@ -68,10 +68,10 @@ def main():
                             if (
                                 foundation.x
                                 <= event.pos[0]
-                                <= foundation.x + c.Card.width
+                                <= foundation.x + v.CardView.width
                                 and foundation.y
                                 <= event.pos[1]
-                                <= foundation.y + c.Card.height
+                                <= foundation.y + v.CardView.height
                             ):
                                 if game_board.model.move_card_column_foundation(
                                     selected_card, original_column, foundation

@@ -1,6 +1,4 @@
 import cards as c
-import view as v
-import random as r
 import pygame
 
 # Define screen dimensions
@@ -9,27 +7,19 @@ HEIGHT = 1000  # Increased height for better spacing
 
 
 class CardColumn:
-    gap = v.CardView.height * 0.26
-
-    def __init__(self, cards: list[c.Card], x, y):
-        self.cards = cards.copy()
-        self.x = x
-        self.y = y
-        self.placeholder = pygame.image.load("resources/placeholder.jpg")
-        self.placeholder = pygame.transform.scale(
-            self.placeholder, (v.CardView.width, v.CardView.height)
-        )
+    def __init__(self, cards: list[c.Card]):
+        self.cards = cards
 
     def is_empty(self):
         return len(self.cards) == 0
 
-    def top(self):
+    def top(self) -> c.Card:
         return self.cards[-1] if not self.is_empty() else None
 
-    def pop(self):
+    def pop(self) -> None:
         return self.cards.pop() if not self.is_empty() else None
 
-    def insert(self, card: c.Card):
+    def insert(self, card: c.Card) -> bool:
         """Insert a card if it follows Baker's Dozen rules."""
         if self.is_empty():
             self.cards.append(card)
@@ -42,34 +32,11 @@ class CardColumn:
     def n_cards(self) -> int:
         return len(self.cards)
 
-    def render(self, screen):
-        pos_y = self.y
-        if self.is_empty():
-            screen.blit(self.placeholder, (self.x, self.y))
-        else:
-            for card in self.cards:
-                screen.blit(card.image, (self.x, pos_y))
-                pos_y += self.gap
-
-    def get_card_at(self, mouse_x, mouse_y):
-        """Detects if the top card was clicked."""
-        if self.x <= mouse_x <= self.x + v.CardView.width:
-            pos_y = self.y + (self.n_cards() - 1) * self.gap
-            if pos_y <= mouse_y <= pos_y + v.CardView.height:
-                return self.top()
-        return None
-
 
 class Foundation:
-    def __init__(self, suite: c.CardSuite, x, y):
+    def __init__(self, suite: c.CardSuite):
         self.cards = []
         self.suite = suite
-        self.x = x
-        self.y = y
-        self.placeholder = pygame.image.load("resources/placeholder.jpg")
-        self.placeholder = pygame.transform.scale(
-            self.placeholder, (v.CardView.width, v.CardView.height)
-        )
 
     def is_empty(self):
         return len(self.cards) == 0
@@ -93,12 +60,6 @@ class Foundation:
 
     def is_full(self) -> bool:
         return self.top() and self.top().cardValue.value == c.CardValue.king
-
-    def draw(self, screen):
-        if self.cards:
-            screen.blit(self.top().image, (self.x, self.y))
-        else:
-            screen.blit(self.placeholder, (self.x, self.y))
 
 
 class Board:
@@ -133,11 +94,3 @@ class Board:
             return True
 
         return False  # Invalid move
-
-    def get_clicked_card(self, mouse_x, mouse_y):
-        """Detects which column was clicked and returns the top card."""
-        for column in self.columns:
-            card = column.get_card_at(mouse_x, mouse_y)
-            if card:
-                return card, column
-        return None, None

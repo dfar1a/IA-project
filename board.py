@@ -61,3 +61,60 @@ class Board:
     def __init__(self, columns: list[CardColumn], foundations: list[Foundation]):
         self.columns = columns
         self.foundations = foundations
+
+    def is_valid_move_column_to_column(self, from_col: CardColumn, to_col: CardColumn) -> bool:
+        """Check if a move between columns is valid."""
+        if from_col.is_empty():
+            return False
+        return to_col.insert(from_col.top())  # Check if the top card can be inserted
+
+    def is_valid_move_column_to_foundation(self, col: CardColumn, foundation: Foundation) -> bool:
+        """Check if a move from column to foundation is valid."""
+        if col.is_empty():
+            return False
+        return foundation.insert(col.top())  # Check if the foundation accepts it
+
+    def move_card_column_column(self, from_col: CardColumn, to_col: CardColumn) -> bool:
+        """Move a card between columns if valid."""
+        if self.is_valid_move_column_to_column(from_col, to_col):
+            to_col.insert(from_col.pop())
+            return True
+        return False
+
+    def move_card_column_foundation(self, col: CardColumn, foundation: Foundation) -> bool:
+        """Move a card from a column to a foundation if valid."""
+        if self.is_valid_move_column_to_foundation(col, foundation):
+            foundation.insert(col.pop())
+            return True
+        return False
+    
+    def move_card_column_to_foundation_ai(self, col, foundation):
+        """Move a card from a column to a foundation if valid (AI only)."""
+        if self.is_valid_move_column_to_foundation(col, foundation):
+            card = col.pop()  # ✅ Remove from column
+            foundation.insert(card)  # ✅ Add to foundation
+
+            # ✅ Ensure UI updates correctly
+            if col.view.cards:
+                col.view.cards.pop()  # ✅ Remove from column UI
+            foundation.view.cards.append(card.view)  # ✅ Add to foundation UI
+
+            print(f"✅ AI moved {card} to Foundation {foundation.suite}")
+
+            return True
+        return False
+
+    def move_card_column_to_column_ai(self, from_col, to_col):
+        """Move a card between columns if valid (AI only)."""
+        if self.is_valid_move_column_to_column(from_col, to_col):
+            card = from_col.pop()
+            to_col.insert(card)
+
+            # ✅ **Fix UI Update**
+            from_col.view.cards.pop()  # Remove from old column UI
+            to_col.view.cards.append(card.view)  # Add to new column UI
+
+            print(f"✅ AI moved {card} from Column to Column, updating board")
+            return True
+        return False
+

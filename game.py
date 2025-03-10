@@ -2,13 +2,45 @@ import pygame
 import cards as c
 import view as v
 import controller as control
+import bfsSolver as bfs_solver
 
 # Increased window size for better spacing and proper alignment
 WIDTH = 1400
 HEIGHT = 1000
 
+def run_ai_mode():
+    """Runs AI mode just like manual mode, ensuring real-time updates."""
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    
+    game_board = control.BoardController()
+    solver = bfs_solver.BFSSolver(game_board)
 
-def main():
+    clock = pygame.time.Clock()
+
+    running = True
+    while running:
+        screen.fill((0, 128, 0))  # Green background
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # ✅ AI makes ONE move at a time, like manual mode
+        moves = solver.get_possible_moves(game_board.model)
+        if moves:
+            solver.apply_move(game_board, moves[0])  # Apply the first move
+            game_board.update(screen)  # ✅ Ensure board redraws
+            pygame.display.update()  # ✅ Ensure UI refreshes
+            pygame.time.delay(500)  # ✅ Slow down for visibility
+
+        game_board.update(screen)  # ✅ Always redraw the board
+        pygame.display.update()  # ✅ Ensure UI refreshes
+        clock.tick(60)  # ✅ Keep frame rate consistent
+
+    pygame.quit()
+
+def main(use_ai=False):
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
@@ -21,6 +53,18 @@ def main():
     dragging = False
     drag_offset_x = 0
     drag_offset_y = 0
+
+    if use_ai:
+        solver = bfs_solver.BFSSolver(game_board)
+        solution = solver.solve()
+        if solution:
+            for move in solution:
+                game_board.apply_move(move)  # ✅ Apply AI moves
+            print("AI solved the game!")
+        else:
+            print("No solution found.")
+        return  # ✅ Exit game after AI finishes
+
 
     while running:
         screen.fill((0, 128, 0))  # Green background for a classic card table look

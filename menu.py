@@ -1,7 +1,8 @@
 import pygame
 import sys
 import game as g
-
+import bfsSolver as bfs_solver
+import controller as control  # Import the game controller
 pygame.init()
 
 WIDTH, HEIGHT = 1280, 720
@@ -55,14 +56,17 @@ def show_high_score():
 def show_more_games():
     print("nao implementado")
 
+def start_ai_game():
+    pygame.quit()  # Quit menu
+    g.run_ai_mode()  # Start AI mode
 
 buttons = [
     Button("Jogar", (WIDTH // 2 - BUTTON_WIDTH // 2, 250), start_game),
-    Button("Ajuda", (WIDTH // 2 - BUTTON_WIDTH // 2, 350), show_help),
-    Button("Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 450), show_high_score),
-    Button("Mais Jogos", (WIDTH // 2 - BUTTON_WIDTH // 2, 550), show_more_games),
+    Button("Jogar (IA)", (WIDTH // 2 - BUTTON_WIDTH // 2, 350), start_ai_game),
+    Button("Ajuda", (WIDTH // 2 - BUTTON_WIDTH // 2, 450), show_help),
+    Button("Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 550), show_high_score),
+    Button("Mais Jogos", (WIDTH // 2 - BUTTON_WIDTH // 2, 650), show_more_games),
 ]
-
 
 def menu():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))

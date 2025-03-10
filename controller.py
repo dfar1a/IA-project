@@ -43,14 +43,18 @@ class ColumnController:
         if self.model.insert(card.model):
             self.cards.append(card)
             self.view.cards.append(card.view)
+            print(f"✅ Inserted {card} into foundation, updating UI")
             return True
         return False
 
+
     def pop(self) -> None:
         if not self.is_empty():
-            self.cards.pop()
+            removed_card = self.cards.pop()
             self.model.pop()
             self.view.cards.pop()
+            print(f"✅ Removed {removed_card} from column, updating UI")
+
 
 
 class FoundationController:
@@ -63,6 +67,10 @@ class FoundationController:
         if self.model.insert(card.model):
             self.cards.append(card)
             self.view.cards.append(card.view)
+            print(f"✅ Inserted {card} into foundation, updating UI")
+
+            # ✅ Force UI update
+            pygame.display.update()
             return True
         return False
 

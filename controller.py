@@ -47,6 +47,8 @@ class ColumnController:
             return True
         return False
 
+    def top(self) -> CardController:
+        return self.cards[-1]
 
     def pop(self) -> None:
         if not self.is_empty():
@@ -162,11 +164,11 @@ class BoardController:
 
     def move_card_column_column(
         self,
-        card: CardController,
         from_column: ColumnController,
         to_column: ColumnController,
     ) -> bool:
         """Moves the top card from one column to another if the move is valid."""
+        card = from_column.top()
         if from_column.is_empty():
             return False  # No card to move
 
@@ -178,11 +180,11 @@ class BoardController:
 
     def move_card_column_foundation(
         self,
-        card: CardController,
         from_column: ColumnController,
         foundation: FoundationController,
     ) -> bool:
         """Moves a card from a column to a foundation if valid."""
+        card = from_column.top()
         if from_column.is_empty():
             return False
 

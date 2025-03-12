@@ -37,6 +37,7 @@ class TreeNode:
         self.state = state
         self.parent = parent
         self.children = dict()
+        self.next = None
 
     def add_child(self, child_node, transition):
         self.children[child_node] = transition
@@ -74,6 +75,22 @@ class BFSSolver:
 
         return None
 
+    def execute_next_move(root: TreeNode, board: BoardController):
+        if root.next != None:
+            next, move = root.next
+
+            if move[0] == MoveType.column:
+                board.move_card_column_column(
+                    board.columns[move[1]], board.columns[move[2]]
+                )
+            elif move[0] == MoveType.foundation:
+                board.move_card_column_foundation(
+                    board.columns[move[1]], board.foundations[move[2]]
+                )
+
+            return next
+        return None
+
     @staticmethod
     def run_ai(game_board):
         """Runs BFS-based AI to solve the game with smarter move prioritization."""
@@ -83,30 +100,16 @@ class BFSSolver:
 
         if solution != None:
             print("Solution found")
+            v = solution
+            while v.parent != None:
+                parent = v.parent
+                parent.next = (v, parent.children[v])
+                v = parent
+
+            return v
         else:
             print("Solution not found")
-
-        # if not moves:
-        #     print("🎯 No more valid moves. AI stopped.")
-        #     break
-
-        # move = moves.pop(0)
-        # success = False
-
-        # if move[0] == MoveType.foundation:
-        #     pass
-
-        # elif move[0] == MoveType.column:
-        #     pass
-
-        # if success:
-        #     board_state = BFSSolver.board_to_string(game_board.model)
-        #     if board_state not in visited_states:
-        #         visited_states.add(board_state)
-        #         queue.append(game_board.model)
-
-        # else:
-        #     print(f"❌ Move {move} was invalid, skipping.")
+            return None
 
     @staticmethod
     def get_possible_moves(board) -> list[tuple[str, int, int]]:

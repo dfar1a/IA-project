@@ -15,9 +15,7 @@ class CardColumn:
         return self.cards.pop() if not self.is_empty() else None
 
     def can_insert(self, card: c.Card) -> bool:
-        return self.is_empty() or (
-            self.top().cardValue.value == card.cardValue.value + 1
-        )
+        return self.top().cardValue == card.next
 
     def insert(self, card: c.Card) -> bool:
         """Insert a card if it follows Baker's Dozen rules."""
@@ -81,6 +79,23 @@ class Board:
         self, col: CardColumn, foundation: Foundation
     ) -> bool:
         """Check if a move from column to foundation is valid."""
-        if col.is_empty():
-            return False
-        return foundation.can_insert(col.top())  # Check if the foundation accepts it
+        if column.is_empty():
+            return False  # No card to move
+
+        card = column.top()
+
+        # ✅ Allow Aces to go to empty foundations
+        if foundation.is_empty():
+            return card.cardValue.value == c.CardValue.ace
+
+        # ✅ Check if card is the next in sequence and same suit
+        top_foundation_card = foundation.top()
+
+        return (
+            card.cardSuite == top_foundation_card.cardSuite
+            and card.cardValue.value == top_foundation_card.cardValue.value + 1
+        )
+
+    def is_game_won(self) -> bool:
+        """Check if the game is won (all foundations have Kings on top)."""
+        return all(f.is_full() for f in self.foundations)

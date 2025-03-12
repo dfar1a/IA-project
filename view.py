@@ -82,4 +82,3 @@ class BoardView:
             column.draw(screen)
         for foundation in self.foundations:
             foundation.draw(screen)
-

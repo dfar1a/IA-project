@@ -21,7 +21,7 @@ class CardValue:
             return CardValue.names[self.value]
 
     def __eq__(self, other):
-        return self.value == other.value
+        return isinstance(other, CardValue) and self.value == other.value
 
     def __hash__(self):
         return hash(self.value)
@@ -41,7 +41,7 @@ class CardSuite:
         return CardSuite.suites[self.value]
 
     def __eq__(self, other):
-        return self.value == other.value
+        return isinstance(other, CardSuite) and self.value == other.value
 
     def __hash__(self):
         return hash(self.value)
@@ -65,7 +65,11 @@ class Card:
         return self.cardValue.__str__() + "_of_" + self.cardSuite.__str__()
 
     def __eq__(self, other):
-        return self.cardValue == other.cardValue and self.cardSuite == other.cardSuite
+        return (
+            isinstance(other)
+            and self.cardValue == other.cardValue
+            and self.cardSuite == other.cardSuite
+        )
 
     def __hash__(self):
         return hash((self.cardValue, self.cardSuite))

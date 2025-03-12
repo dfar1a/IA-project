@@ -8,6 +8,7 @@ import bfsSolver as bfs_solver
 WIDTH = 1400
 HEIGHT = 1000
 
+
 def main(use_ai=True):
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -21,16 +22,14 @@ def main(use_ai=True):
     dragging = False
     drag_offset_x = 0
     drag_offset_y = 0
-    solver = bfs_solver.BFSSolver()
+    # solver = bfs_solver.BFSSolver()
 
     while running:
         screen.fill((0, 128, 0))  # Green background for a classic card table look
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        if use_ai and pygame.time.get_ticks()%60 == 0:
-            bfs_solver.BFSSolver.run_ai(game_board)
-        
-
+        # if use_ai and pygame.time.get_ticks()%60 == 0:
+        #     bfs_solver.BFSSolver.run_ai(game_board)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -64,9 +63,7 @@ def main(use_ai=True):
                             col_x <= event.pos[0] <= col_x + v.CardView.width
                             and col_y <= event.pos[1] <= col_y + v.CardView.height
                         ):
-                            if game_board.move_card_column_column(
-                                original_column, col
-                            ):
+                            if game_board.move_card_column_column(original_column, col):
                                 valid_move = True
                                 break
 

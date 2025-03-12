@@ -15,7 +15,7 @@ class CardColumn:
         return self.cards.pop() if not self.is_empty() else None
     
     def can_insert(self, card: c.Card) -> bool:
-        return self.is_empty() or (self.top().cardValue.value == card.cardValue.value + 1)
+        return (self.top().cardValue.value == card.cardValue.value + 1)
 
     def insert(self, card: c.Card) -> bool:
         """Insert a card if it follows Baker's Dozen rules."""
@@ -41,9 +41,13 @@ class Foundation:
     
     def can_insert(self, card: c.Card) -> bool:
         emptyAndAce = self.is_empty() and card.cardValue.value == c.CardValue.ace
-        isNext = not self.is_empty() and self.top().cardSuite == card.cardSuite and card.cardValue.value == self.top().next
-
+        isNext = (
+            not self.is_empty()
+            and self.top().cardSuite == card.cardSuite
+            and card.cardValue.value == self.top().cardValue.value + 1  # FIXED
+        )
         return emptyAndAce or isNext
+
     
     def insert(self, card: c.Card) -> bool:
         """Move to foundation only in ascending order and correct suit."""
@@ -62,13 +66,40 @@ class Board:
         self.foundations = foundations
 
     def is_valid_move_column_to_column(self, from_col: CardColumn, to_col: CardColumn) -> bool:
-        """Check if a move between columns is valid."""
+        """Check if a move between columns is valid (descending order)."""
         if from_col.is_empty():
             return False
-        return to_col.can_insert(from_col.top())  # Check if the top card can be inserted
 
-    def is_valid_move_column_to_foundation(self, col: CardColumn, foundation: Foundation) -> bool:
+        from_card = from_col.top()
+
+        # ❌ Kings cannot be moved
+        if from_card.cardValue.value == c.CardValue.king:
+            return False  
+
+        # ✅ Can only place a card onto a column if it's **1 rank lower**
+        if to_col.is_empty():
+            return False  # Empty column can accept any card (except Kings)
+        
+        return to_col.top().cardValue.value == from_card.cardValue.value + 1
+
+    def is_valid_move_column_to_foundation(self, column: CardColumn, foundation: Foundation) -> bool:
         """Check if a move from column to foundation is valid."""
-        if col.is_empty():
-            return False
-        return foundation.can_insert(col.top())  # Check if the foundation accepts it
+        if column.is_empty():
+            return False  # No card to move
+
+        card = column.top()
+
+        # ✅ Allow Aces to go to empty foundations
+        if foundation.is_empty():
+            return card.cardValue.value == c.CardValue.ace
+
+        # ✅ Check if card is the next in sequence and same suit
+        top_foundation_card = foundation.top()
+
+        return (card.cardSuite == top_foundation_card.cardSuite and
+                card.cardValue.value == top_foundation_card.cardValue.value + 1)
+
+
+    def is_game_won(self) -> bool:
+        """Check if the game is won (all foundations have Kings on top)."""
+        return all(f.is_full() for f in self.foundations)

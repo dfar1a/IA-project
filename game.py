@@ -22,14 +22,12 @@ def main(use_ai=True):
     dragging = False
     drag_offset_x = 0
     drag_offset_y = 0
-    # solver = bfs_solver.BFSSolver()
+
+    bfs_solver.BFSSolver.run_ai(game_board)
 
     while running:
         screen.fill((0, 128, 0))  # Green background for a classic card table look
         mouse_x, mouse_y = pygame.mouse.get_pos()
-
-        # if use_ai and pygame.time.get_ticks()%60 == 0:
-        #     bfs_solver.BFSSolver.run_ai(game_board)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

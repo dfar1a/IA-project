@@ -58,7 +58,6 @@ class ColumnController:
             print(f"✅ Removed {removed_card} from column, updating UI")
 
 
-
 class FoundationController:
     def __init__(self, suite: c.CardSuite, pos: tuple[int, int]):
         self.model = b.Foundation(suite)
@@ -99,7 +98,7 @@ def create_deck() -> list[CardController]:
         shuffled_deck[p] = kings[i]
         i += 1
 
-    r.shuffle(deck)
+    # r.shuffle(deck)
 
     i = 0
 
@@ -163,10 +162,10 @@ class BoardController:
         return None, None
 
     def move_card_column_column(
-    self,
-    from_column: ColumnController,
-    to_column: ColumnController,
-) -> bool:
+        self,
+        from_column: ColumnController,
+        to_column: ColumnController,
+    ) -> bool:
         """Moves the top card from one column to another if the move is valid."""
         if from_column.is_empty():
             return False  # No card to move
@@ -186,8 +185,9 @@ class BoardController:
         print(f"❌ Move {card} to column failed, returning card to original column!")
         return False  # Invalid move
 
-
-    def move_card_column_foundation(self, from_column: ColumnController, foundation: FoundationController) -> bool:
+    def move_card_column_foundation(
+        self, from_column: ColumnController, foundation: FoundationController
+    ) -> bool:
         """Moves a card from a column to a foundation if valid."""
         card = from_column.top()
         if from_column.is_empty():
@@ -196,7 +196,9 @@ class BoardController:
         print(f"[DEBUG] Attempting to move {card} to foundation...")  # ADD THIS PRINT
 
         if foundation.insert(card):
-            print(f"[DEBUG] Move successful: {card} placed on foundation.")  # ADD THIS PRINT
+            print(
+                f"[DEBUG] Move successful: {card} placed on foundation."
+            )  # ADD THIS PRINT
             from_column.pop()  # Remove only if move is valid
             return True
 

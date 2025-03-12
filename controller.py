@@ -98,7 +98,7 @@ def create_deck() -> list[CardController]:
         shuffled_deck[p] = kings[i]
         i += 1
 
-    # r.shuffle(deck)
+    r.shuffle(deck)
 
     i = 0
 

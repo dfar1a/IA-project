@@ -1,8 +1,43 @@
-import pygame
 import board as b
 import cards as c
 from controller import BoardController
 from collections import deque
+from heapq import *
+import threading
+
+
+class AsyncBFSSolver:
+    def __init__(self, game_board):
+        self.initstate = game_board.model
+        self.solution = None
+        self.thread = threading.Thread(target=self.run_bfs)
+        self.running = False
+
+    def run_bfs(self):
+        """Executa BFS em background sem bloquear o jogo."""
+        self.running = True
+        self.solution = BFSSolver.run_ai(self.initstate)
+        self.running = False
+
+    def start(self):
+        """Inicia a pesquisa BFS numa thread separada."""
+        self.thread.start()
+
+    def is_running(self):
+        """Verifica se a pesquisa ainda está a decorrer."""
+        return self.running
+
+    def get_solution(self):
+        """Retorna a solução se já tiver sido encontrada."""
+        if not self.is_running():
+            solution = self.solution
+            if solution != None and solution.next != None:
+                self.solution = solution.next[0]
+            else:
+                self.solution = None
+
+            return solution
+        return None
 
 
 class MoveType:
@@ -33,15 +68,39 @@ def move_col_foundation(state: b.Board, from_col: int, to_found: int):
 
 
 class TreeNode:
+    def evaluate(state: b.Board):
+        score = 0
+        nextCards = {found.top() for found in state.foundations}
+        lenFounds = [len(found.cards) for found in state.foundations]
+        sumLen = sum(lenFounds)
+        minLen = min(lenFounds)
+
+        for column in state.columns:
+            cards = column.cards
+
+            #         score += 0.5 * (cards[i + 1].cardSuite != cards[i].cardSuite)
+
+            for i, card in enumerate(cards):
+                if card in nextCards:
+                    score += 2 * (len(cards) - i - 1) ** 1.5
+
+        score += 13 * 4 - sumLen
+
+        return score
+
     def __init__(self, state: b.Board, parent=None):
         self.state = state
         self.parent = parent
         self.children = dict()
         self.next = None
+        self.score = TreeNode.evaluate(state)
 
     def add_child(self, child_node, transition):
         self.children[child_node] = transition
         child_node.parent = self
+
+    def __lt__(self, other):
+        return isinstance(other, TreeNode) and self.score < other.score
 
 
 class BFSSolver:
@@ -49,15 +108,15 @@ class BFSSolver:
     @staticmethod
     def bfs(root: TreeNode) -> TreeNode | None:
         visited_states = set()
-        queue = deque([root])
+        queue = [root]
         move_card = {
             MoveType.foundation: move_col_foundation,
             MoveType.column: move_col_col,
         }
-        visited_states.add(root.state)
+        visited_states.add(root.state.__hash__())
 
-        while queue:
-            current_board = queue.popleft()
+        while queue and len(visited_states) < 5 * 10**4:
+            current_board = heappop(queue)
 
             if current_board.state.is_game_won():
                 return current_board
@@ -67,11 +126,11 @@ class BFSSolver:
             for move in moves:
                 state = move_card[move[0]](current_board.state, move[1], move[2])
 
-                if state != None and state not in visited_states:
+                if state != None and state.__hash__() not in visited_states:
                     node = TreeNode(state)
                     current_board.add_child(node, move)
-                    visited_states.add(state)
-                    queue.append(node)
+                    visited_states.add(state.__hash__())
+                    heappush(queue, node)
 
         return None
 
@@ -94,7 +153,7 @@ class BFSSolver:
     @staticmethod
     def run_ai(game_board):
         """Runs BFS-based AI to solve the game with smarter move prioritization."""
-        v = TreeNode(game_board.model)
+        v = TreeNode(game_board)
 
         solution = BFSSolver.bfs(v)
 
@@ -115,68 +174,78 @@ class BFSSolver:
     def get_possible_moves(board) -> list[tuple[str, int, int]]:
         """Returns a prioritized list of possible moves in the given board state."""
         moves = []
-
+        minLen = min([len(found.cards) for found in board.foundations])
         # Move Aces to the Foundation First**
         for i, col in enumerate(board.columns):
-            if not col.is_empty() and col.top().cardValue.value == c.CardValue.ace:
+            if not col.is_empty() and col.top().cardValue.value == (minLen + 1):
                 for f, foundation in enumerate(board.foundations):
                     if board.is_valid_move_column_to_foundation(col, foundation):
-                        print(f"✅ Moving Ace from Column {i} to Foundation {f}")
-                        moves.append((MoveType.foundation, i, f))
+                        return [(MoveType.foundation, i, f)]
 
-        # Free Aces (Move Blocking Cards)**
-        aces_blocked = BFSSolver.get_blocked_aces(board)
-        for ace_col in aces_blocked:
-            if not board.columns[ace_col].is_empty():
-                top_card = board.columns[ace_col].top()
-                for target_col in range(len(board.columns)):
-                    if ace_col != target_col and board.is_valid_move_column_to_column(
-                        board.columns[ace_col], board.columns[target_col]
-                    ):
-                        print(
-                            f"✅ Moving {top_card} from Column {ace_col} to Column {target_col} to free Ace"
-                        )
-                        moves.append((MoveType.column, ace_col, target_col))
+        for i, col in enumerate(board.columns):
+            for f, foundation in enumerate(board.foundations):
+                if board.is_valid_move_column_to_foundation(col, foundation):
+                    moves.append((MoveType.foundation, i, f))
 
-        # Move Next Sequential Cards to the Foundation (Ordered by Suit)**
-        for f, foundation in enumerate(board.foundations):
-            if not foundation.is_empty():
-                next_card_value = foundation.top().cardValue.value + 1
-                sorted_columns = sorted(
-                    enumerate(board.columns),
-                    key=lambda x: (
-                        x[1].top().cardSuite.value
-                        if not x[1].is_empty()
-                        else float("inf")
-                    ),
-                )
+        for i, col1 in enumerate(board.columns):
+            for f, col2 in enumerate(board.columns):
+                if i != f and board.is_valid_move_column_to_column(col1, col2):
+                    moves.append((MoveType.column, i, f))
 
-                for i, col in sorted_columns:
-                    if (
-                        not col.is_empty()
-                        and col.top().cardValue.value == next_card_value
-                    ):
-                        if board.is_valid_move_column_to_foundation(col, foundation):
-                            print(
-                                f"✅ Moving {col.top()} from Column {i} to Foundation {f}"
-                            )
-                            moves.append((MoveType.foundation, i, f))
+        return moves
+        # # Free Aces (Move Blocking Cards)**
+        # aces_blocked = BFSSolver.get_blocked_aces(board)
+        # for ace_col in aces_blocked:
+        #     if not board.columns[ace_col].is_empty():
+        #         top_card = board.columns[ace_col].top()
+        #         for target_col in range(len(board.columns)):
+        #             if ace_col != target_col and board.is_valid_move_column_to_column(
+        #                 board.columns[ace_col], board.columns[target_col]
+        #             ):
+        #                 print(
+        #                     f"✅ Moving {top_card} from Column {ace_col} to Column {target_col} to free Ace"
+        #                 )
+        #                 moves.append((MoveType.column, ace_col, target_col))
 
-        # Smart Column Moves (Only If It Helps Foundation)**
-        if not moves:
-            for i, from_col in enumerate(board.columns):
-                if from_col.is_empty():
-                    continue
-                for j, to_col in enumerate(board.columns):
-                    if i != j and board.is_valid_move_column_to_column(
-                        from_col, to_col
-                    ):
-                        # ✅ Check if this move actually helps free a foundation move
-                        if BFSSolver.will_help_foundation(board, from_col, to_col):
-                            print(
-                                f"✅ Moving {from_col.top()} from Column {i} to Column {j}"
-                            )
-                            moves.append((MoveType.column, i, j))
+        # # Move Next Sequential Cards to the Foundation (Ordered by Suit)**
+        # for f, foundation in enumerate(board.foundations):
+        #     if not foundation.is_empty():
+        #         next_card_value = foundation.top().cardValue.value + 1
+        #         sorted_columns = sorted(
+        #             enumerate(board.columns),
+        #             key=lambda x: (
+        #                 x[1].top().cardSuite.value
+        #                 if not x[1].is_empty()
+        #                 else float("inf")
+        #             ),
+        #         )
+
+        #         for i, col in sorted_columns:
+        #             if (
+        #                 not col.is_empty()
+        #                 and col.top().cardValue.value == next_card_value
+        #             ):
+        #                 if board.is_valid_move_column_to_foundation(col, foundation):
+        #                     print(
+        #                         f"✅ Moving {col.top()} from Column {i} to Foundation {f}"
+        #                     )
+        #                     moves.append((MoveType.foundation, i, f))
+
+        # # Smart Column Moves (Only If It Helps Foundation)**
+        # if not moves:
+        #     for i, from_col in enumerate(board.columns):
+        #         if from_col.is_empty():
+        #             continue
+        #         for j, to_col in enumerate(board.columns):
+        #             if i != j and board.is_valid_move_column_to_column(
+        #                 from_col, to_col
+        #             ):
+        #                 # ✅ Check if this move actually helps free a foundation move
+        #                 if BFSSolver.will_help_foundation(board, from_col, to_col):
+        #                     print(
+        #                         f"✅ Moving {from_col.top()} from Column {i} to Column {j}"
+        #                     )
+        #                     moves.append((MoveType.column, i, j))
 
         return moves
 

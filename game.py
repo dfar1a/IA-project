@@ -23,7 +23,8 @@ def main(use_ai=True):
     drag_offset_x = 0
     drag_offset_y = 0
 
-    root = bfs_solver.BFSSolver.run_ai(game_board)
+    solver = bfs_solver.AsyncBFSSolver(game_board)
+    solver.start()
 
     while running:
         screen.fill((0, 128, 0))  # Green background for a classic card table look
@@ -88,8 +89,10 @@ def main(use_ai=True):
                     selected_card = None
                     dragging = False
 
-        if root != None and pygame.time.get_ticks() % 500 < clock.get_time():
-            root = bfs_solver.BFSSolver.execute_next_move(root, game_board)
+        if pygame.time.get_ticks() % 500 < clock.get_time():
+            state = solver.get_solution()
+            if state != None:
+                bfs_solver.BFSSolver.execute_next_move(state, game_board)
         game_board.update(screen)
 
         # Draw dragging card

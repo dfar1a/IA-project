@@ -28,14 +28,14 @@ class CardColumn:
     def insert(self, card: c.Card) -> bool:
         """Insert a card if it follows Baker's Dozen rules."""
         if self.can_insert(card):
-            self.cards = list(self.cards)
-            self.cards.append(card)
-            self.cards = tuple(self.cards)
+            self.cards = self.cards + (
+                card,
+            )  # Em vez de converter para lista e de volta
             return True
         return False
 
     def n_cards(self) -> int:
-        return len(self.cards)
+        return len(tuple(hash(card) for card in self.cards))
 
     def __hash__(self):
         return hash(self.cards)
@@ -55,7 +55,7 @@ class Foundation:
     def is_empty(self):
         return len(self.cards) == 0
 
-    def top(self) -> c.Card:
+    def top(self) -> c.Card | None:
         return self.cards[-1] if self.cards else None
 
     def can_insert(self, card: c.Card) -> bool:
@@ -69,11 +69,10 @@ class Foundation:
         return emptyAndAce or isNext
 
     def insert(self, card: c.Card) -> bool:
-        """Move to foundation only in ascending order and correct suit."""
         if self.can_insert(card):
-            self.cards = list(self.cards)
-            self.cards.append(card)
-            self.cards = tuple(self.cards)
+            self.cards = self.cards + (
+                card,
+            )  # Em vez de converter para lista e de volta
             return True
         return False
 
@@ -81,7 +80,7 @@ class Foundation:
         return self.top() and self.top().cardValue.value == c.CardValue.king
 
     def __hash__(self):
-        return hash((self.cards))
+        return hash(self.cards)
 
     def __eq__(self, other):
         return isinstance(other, Foundation) and self.cards == other.cards
@@ -117,15 +116,20 @@ class Board:
         return foundation.can_insert(col.top())
 
     def is_game_won(self) -> bool:
-        """Check if the game is won (all foundations have Kings on top)."""
-        return all(f.is_full() for f in self.foundations)
+        """Check if all foundations have a King on top."""
+        return all(f.is_full() for f in self.foundations) if self.foundations else False
 
     def __hash__(self):
-        return hash((self.columns, self.foundations))
+        return hash(
+            (
+                tuple(hash(col) for col in self.columns),
+                tuple(hash(f) for f in self.foundations),
+            )
+        )
 
     def __eq__(self, other):
         return (
             isinstance(other, Board)
             and self.foundations == other.foundations
-            and self.columns == self.columns
+            and self.columns == other.columns
         )

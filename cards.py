@@ -66,10 +66,10 @@ class Card:
 
     def __eq__(self, other):
         return (
-            isinstance(other)
+            isinstance(other, Card)
             and self.cardValue == other.cardValue
             and self.cardSuite == other.cardSuite
         )
 
     def __hash__(self):
-        return hash((self.cardValue, self.cardSuite))
+        return hash((self.cardSuite, self.cardValue))

@@ -94,8 +94,14 @@ def main(use_ai=True):
             state = solver.get_solution()
             if state != None:
                 bfs_solver.BFSSolver.execute_next_move(state, game_board)
+                boardState = hash(game_board.model)
             elif hash(game_board.model) != boardState:
                 solver.stop()
+                solver = bfs_solver.AsyncBFSSolver(game_board)
+                solver.start()
+                boardState = hash(game_board.model)
+            elif not solver.is_running():
+                game_board = control.BoardController()
                 solver = bfs_solver.AsyncBFSSolver(game_board)
                 solver.start()
                 boardState = hash(game_board.model)
@@ -112,6 +118,7 @@ def main(use_ai=True):
         pygame.display.update()
         clock.tick(60)
 
+    solver.save_data()
     pygame.quit()
 
 

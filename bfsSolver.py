@@ -3,24 +3,42 @@ import cards as c
 from controller import BoardController
 from collections import deque
 from heapq import *
+import pickle
 import threading
 
-stop = False
+
+def save_data_pickle(filename, data):
+    with open(filename, "wb") as file:
+        pickle.dump(data, file)
+
+
+def load_data_pickle(filename):
+    try:
+        with open(filename, "rb") as file:
+            return pickle.load(file)
+    except:
+        return dict()
 
 
 class AsyncBFSSolver:
+    learn = load_data_pickle("learn.data")
+    _stop = False
+
     def __init__(self, game_board):
-        stop = False
         self.initstate = game_board.model
         self.solution = None
         self.thread = threading.Thread(target=self.run_bfs)
         self.running = False
 
     def stop(self):
-        stop = True
+        AsyncBFSSolver._stop = True
+
+    def save_data(self):
+        save_data_pickle("learn.data", self.learn)
 
     def run_bfs(self):
         """Executa BFS em background sem bloquear o jogo."""
+        AsyncBFSSolver._stop = False
         self.running = True
         self.solution = BFSSolver.run_ai(self.initstate)
         self.running = False
@@ -75,6 +93,10 @@ def move_col_foundation(state: b.Board, from_col: int, to_found: int):
 
 class TreeNode:
     def evaluate(state: b.Board):
+        cost = AsyncBFSSolver.learn.get(hash(state))
+        if cost != None:
+            return -(10**3) // (cost + 1)
+
         score = 0
         nextCards = {
             (
@@ -129,7 +151,7 @@ class BFSSolver:
         }
         visited_states.add(hash(root.state))
 
-        while queue and len(visited_states) < 5 * 10**4 and not stop:
+        while queue and len(visited_states) < 5 * 10**4 and not AsyncBFSSolver._stop:
             current_board = heappop(queue)
 
             if current_board.state.is_game_won():
@@ -142,6 +164,8 @@ class BFSSolver:
 
                 if state != None and hash(state) not in visited_states:
                     node = TreeNode(state)
+                    if node.score < 0:
+                        print("Known state")
                     current_board.add_child(node, move)
                     visited_states.add(hash(state))
                     heappush(queue, node)
@@ -173,11 +197,15 @@ class BFSSolver:
         if solution != None:
             print("Solution found")
             v = solution
+            depth = 0
             while v.parent != None:
+                data = AsyncBFSSolver.learn.get(hash(v.state))
+                if data == None or depth < data:
+                    AsyncBFSSolver.learn[hash(v.state)] = depth
+                depth += 1
                 parent = v.parent
                 parent.next = (v, parent.children[v])
                 v = parent
-
             return v
         else:
             print("Solution not found")
@@ -229,6 +257,7 @@ class BFSSolver:
         #             key=lambda x: (
         #                 x[1].top().cardSuite.value
         #                 if not x[1].is_empty()
+
         #                 else float("inf")
         #             ),
         #         )

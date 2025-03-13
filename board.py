@@ -120,12 +120,13 @@ class Board:
         return all(f.is_full() for f in self.foundations) if self.foundations else False
 
     def __hash__(self):
-        return hash(
-            (
-                tuple(hash(col) for col in self.columns),
-                tuple(hash(f) for f in self.foundations),
-            )
-        )
+        colHash = [hash(col) for col in self.columns]
+        foundHash = [hash(f) for f in self.foundations]
+
+        colHash.sort()
+        foundHash.sort()
+
+        return hash((tuple(colHash), tuple(foundHash)))
 
     def __eq__(self, other):
         return (

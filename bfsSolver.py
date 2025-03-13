@@ -5,13 +5,19 @@ from collections import deque
 from heapq import *
 import threading
 
+stop = False
+
 
 class AsyncBFSSolver:
     def __init__(self, game_board):
+        stop = False
         self.initstate = game_board.model
         self.solution = None
         self.thread = threading.Thread(target=self.run_bfs)
         self.running = False
+
+    def stop(self):
+        stop = True
 
     def run_bfs(self):
         """Executa BFS em background sem bloquear o jogo."""
@@ -70,7 +76,15 @@ def move_col_foundation(state: b.Board, from_col: int, to_found: int):
 class TreeNode:
     def evaluate(state: b.Board):
         score = 0
-        nextCards = {found.top() for found in state.foundations}
+        nextCards = {
+            (
+                c.Card(found.top().next, found.top().cardSuite)
+                if found.top() is not None
+                else c.Card(c.CardValue.ace, found.suite)
+            )
+            for found in state.foundations
+        }
+
         lenFounds = [len(found.cards) for found in state.foundations]
         sumLen = sum(lenFounds)
         minLen = min(lenFounds)
@@ -113,9 +127,9 @@ class BFSSolver:
             MoveType.foundation: move_col_foundation,
             MoveType.column: move_col_col,
         }
-        visited_states.add(root.state.__hash__())
+        visited_states.add(hash(root.state))
 
-        while queue and len(visited_states) < 5 * 10**4:
+        while queue and len(visited_states) < 5 * 10**4 and not stop:
             current_board = heappop(queue)
 
             if current_board.state.is_game_won():
@@ -126,10 +140,10 @@ class BFSSolver:
             for move in moves:
                 state = move_card[move[0]](current_board.state, move[1], move[2])
 
-                if state != None and state.__hash__() not in visited_states:
+                if state != None and hash(state) not in visited_states:
                     node = TreeNode(state)
                     current_board.add_child(node, move)
-                    visited_states.add(state.__hash__())
+                    visited_states.add(hash(state))
                     heappush(queue, node)
 
         return None
@@ -152,9 +166,8 @@ class BFSSolver:
 
     @staticmethod
     def run_ai(game_board):
-        """Runs BFS-based AI to solve the game with smarter move prioritization."""
         v = TreeNode(game_board)
-
+        print("AI running")
         solution = BFSSolver.bfs(v)
 
         if solution != None:

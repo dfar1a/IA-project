@@ -25,6 +25,7 @@ def main(use_ai=True):
 
     solver = bfs_solver.AsyncBFSSolver(game_board)
     solver.start()
+    boardState = hash(game_board.model)
 
     while running:
         screen.fill((0, 128, 0))  # Green background for a classic card table look
@@ -93,6 +94,12 @@ def main(use_ai=True):
             state = solver.get_solution()
             if state != None:
                 bfs_solver.BFSSolver.execute_next_move(state, game_board)
+            elif hash(game_board.model) != boardState:
+                solver.stop()
+                solver = bfs_solver.AsyncBFSSolver(game_board)
+                solver.start()
+                boardState = hash(game_board.model)
+
         game_board.update(screen)
 
         # Draw dragging card

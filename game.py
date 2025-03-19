@@ -103,11 +103,12 @@ def main(use_ai=True):
                 solver = bfs_solver.AsyncBFSSolver(game_board)
                 solver.start()
                 boardState = hash(game_board.model)
-            elif not solver.is_running():
-                game_board = control.BoardController()
-                solver = bfs_solver.AsyncBFSSolver(game_board)
-                solver.start()
-                boardState = hash(game_board.model)
+            # Commented out the part where the board resets
+            # elif not solver.is_running():
+            #     game_board = control.BoardController()
+            #     solver = bfs_solver.AsyncBFSSolver(game_board)
+            #     solver.start()
+            #     boardState = hash(game_board.model)
 
         game_board.update(screen)
 

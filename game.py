@@ -26,6 +26,7 @@ def main(use_ai=True):
     solver = bfs_solver.AsyncBFSSolver(game_board)
     solver.start()
     boardState = hash(game_board.model)
+    ai_paused = False
 
     while running:
         screen.fill((0, 128, 0))  # Green background for a classic card table look
@@ -50,6 +51,7 @@ def main(use_ai=True):
                     drag_offset_y = event.pos[1] - (
                         col_y + (column.model.n_cards() - 1) * column.view.gap
                     )
+                    ai_paused = True  # Pause the AI when dragging starts
 
             elif event.type == pygame.MOUSEBUTTONUP:
                 if selected_card:
@@ -89,8 +91,9 @@ def main(use_ai=True):
 
                     selected_card = None
                     dragging = False
+                    ai_paused = False  # Resume the AI when dragging stops
 
-        if pygame.time.get_ticks() % 500 < clock.get_time():
+        if not ai_paused and pygame.time.get_ticks() % 500 < clock.get_time():
             state = solver.get_solution()
             if state != None:
                 bfs_solver.BFSSolver.execute_next_move(state, game_board)
@@ -100,11 +103,12 @@ def main(use_ai=True):
                 solver = bfs_solver.AsyncBFSSolver(game_board)
                 solver.start()
                 boardState = hash(game_board.model)
-            elif not solver.is_running():
-                game_board = control.BoardController()
-                solver = bfs_solver.AsyncBFSSolver(game_board)
-                solver.start()
-                boardState = hash(game_board.model)
+            # Commented out the part where the board resets
+            # elif not solver.is_running():
+            #     game_board = control.BoardController()
+            #     solver = bfs_solver.AsyncBFSSolver(game_board)
+            #     solver.start()
+            #     boardState = hash(game_board.model)
 
         game_board.update(screen)
 

@@ -5,6 +5,7 @@ from collections import deque
 from heapq import *
 import pickle
 import threading
+import random
 
 
 def save_data_pickle(filename, data):
@@ -110,19 +111,21 @@ class TreeNode:
         lenFounds = [len(found.cards) for found in state.foundations]
         sumLen = sum(lenFounds)
         minLen = min(lenFounds)
+        maxLen = max(lenFounds)
 
         for column in state.columns:
             cards = column.cards
 
-            #         score += 0.5 * (cards[i + 1].cardSuite != cards[i].cardSuite)
+            # for i in range(len(cards) - 1):
+            #     score += 0.2 * (cards[i + 1].cardSuite != cards[i].cardSuite)
 
             for i, card in enumerate(cards):
                 if card in nextCards:
-                    score += 2 * (len(cards) - i - 1) ** 1.5
+                    score += 2 ** (len(cards) - i - 1)
 
         score += 13 * 4 - sumLen
 
-        return score
+        return score + random.random()
 
     def __init__(self, state: b.Board, parent=None):
         self.state = state

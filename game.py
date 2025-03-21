@@ -2,7 +2,8 @@ import pygame
 import cards as c
 import view as v
 import controller as control
-import bfsSolver as bfs_solver
+from solver import AsyncBFSSolver, execute_next_move
+
 
 # Increased window size for better spacing and proper alignment
 WIDTH = 1400
@@ -23,7 +24,7 @@ def main(use_ai=True):
     drag_offset_x = 0
     drag_offset_y = 0
 
-    solver = bfs_solver.AsyncBFSSolver(game_board)
+    solver = AsyncBFSSolver(game_board)
     solver.start()
     boardState = hash(game_board.model)
     ai_paused = False
@@ -96,11 +97,11 @@ def main(use_ai=True):
         if not ai_paused and pygame.time.get_ticks() % 500 < clock.get_time():
             state = solver.get_solution()
             if state != None:
-                bfs_solver.BFSSolver.execute_next_move(state, game_board)
+                execute_next_move(state, game_board)
                 boardState = hash(game_board.model)
             elif hash(game_board.model) != boardState:
                 solver.stop()
-                solver = bfs_solver.AsyncBFSSolver(game_board)
+                solver = AsyncBFSSolver(game_board)
                 solver.start()
                 boardState = hash(game_board.model)
             # Commented out the part where the board resets

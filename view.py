@@ -1,6 +1,7 @@
 import cards as c
 import board as b
 import pygame
+import math
 
 
 resources = "resources/"
@@ -18,6 +19,8 @@ class CardView:
     height = 726 * scale_factor
 
     def __init__(self, card: c.Card):
+        self.pos = (0, 0)
+        self.dest = self.pos
         self.card = card
         self.image = pygame.transform.smoothscale_by(
             pygame.image.load(self.__str__()), self.scale_factor
@@ -25,6 +28,19 @@ class CardView:
 
     def __str__(self):
         return self.dir + self.card.__str__() + self.image_extension
+
+    def setPos(self, pos: tuple[int, int]):
+        self.dest = pos
+
+    def move(self):
+        v = 5e-2
+        self.pos = tuple(
+            ((self.dest[i] - self.pos[i]) * v) + self.pos[i] for i in range(2)
+        )
+
+    def draw(self, screen: pygame.Surface) -> None:
+        self.move()
+        screen.blit(self.image, self.pos)
 
 
 class Placeholder:
@@ -46,8 +62,25 @@ class CardColumnView(Placeholder):
     gap = CardView.height * 0.26  # Space between stacked cards
 
     def __init__(self, cards: list[CardView], pos: tuple[int, int]):
-        self.cards = cards
+        self.height = CardView.height
+        self.cards = []
         super().__init__(pos)
+        for card in cards:
+            card.setPos((self.pos[0], self.pos[1] + self.gap * len(self.cards)))
+            if len(self.cards) > 1:
+                self.height += self.gap
+            self.cards.append(card)
+
+    def insert(self, card: CardView):
+        card.setPos((self.pos[0], self.pos[1] + self.gap * len(self.cards)))
+        if len(self.cards) > 1:
+            self.height += self.gap
+        self.cards.append(card)
+
+    def pop(self):
+        self.cards.pop()
+        if len(self.cards) > 1:
+            self.height -= self.gap
 
     def draw(self, screen: pygame.Surface) -> None:
         if len(self.cards) == 0:
@@ -55,19 +88,27 @@ class CardColumnView(Placeholder):
         else:
             pos = list(self.pos)
             for card in self.cards:
-                screen.blit(card.image, tuple(pos))
+                card.draw(screen)
                 pos[1] += self.gap  # ✅ Stack cards correctly
 
+
 class FoundationView(Placeholder):
-    def __init__(self, cards: list[CardView], pos: tuple[int, int]):
-        self.cards = cards
+    def __init__(self, pos: tuple[int, int]):
+        self.cards = []
         super().__init__(pos)
 
+    def insert(self, card: CardView) -> None:
+        self.cards.append(card)
+        card.setPos(self.pos)
+
     def draw(self, screen: pygame.Surface) -> None:
-        if len(self.cards) == 0:
+        if len(self.cards) <= 1:
             super().draw(screen)
-        else:
-            screen.blit(self.cards[-1].image, self.pos)  # ✅ Show top card
+        if len(self.cards) > 1:
+            self.cards[-2].draw(screen)
+        if len(self.cards) > 0:
+            self.cards[-1].draw(screen)  # ✅ Show top card
+
 
 class BoardView:
     background = pygame.image.load("resources/background.jpg")

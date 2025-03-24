@@ -32,7 +32,6 @@ class ColumnController:
         if x <= mouse_x <= x + v.CardView.width and len(self.cards) != 0:
             pos_y = y + (self.model.n_cards() - 1) * self.view.gap
             if pos_y <= mouse_y <= pos_y + v.CardView.height:
-                self.view.cards.pop()
                 return self.cards[-1]
         return None
 
@@ -42,8 +41,8 @@ class ColumnController:
     def insert(self, card: CardController) -> bool:
         if self.model.insert(card.model):
             self.cards.append(card)
-            self.view.cards.append(card.view)
-            print(f"✅ Inserted {card} into foundation, updating UI")
+            self.view.insert(card.view)
+            print(f"Inserted {card} into foundation, updating UI")
             return True
         return False
 
@@ -54,24 +53,22 @@ class ColumnController:
         if not self.is_empty():
             removed_card = self.cards.pop()
             self.model.pop()
-            self.view.cards.pop()
-            print(f"✅ Removed {removed_card} from column, updating UI")
+            self.view.pop()
+            print(f"Removed {removed_card} from column, updating UI")
 
 
 class FoundationController:
     def __init__(self, suite: c.CardSuite, pos: tuple[int, int]):
         self.model = b.Foundation(suite)
-        self.view = v.FoundationView([], pos)
+        self.view = v.FoundationView(pos)
         self.cards = list()
 
     def insert(self, card: CardController) -> bool:
         if self.model.insert(card.model):
             self.cards.append(card)
-            self.view.cards.append(card.view)
-            print(f"✅ Inserted {card} into foundation, updating UI")
+            self.view.insert(card.view)
+            print(f"Inserted {card} into foundation, updating UI")
 
-            # ✅ Force UI update
-            pygame.display.update()
             return True
         return False
 
@@ -149,9 +146,12 @@ class BoardController:
             [column.view for column in self.columns],
             [foundation.view for foundation in self.foundations],
         )
+        self.selectedCard = None
 
     def update(self, screen: pygame.Surface) -> None:
         self.view.draw(screen)
+        if self.selectedCard is not None:
+            self.selectedCard.view.draw(screen)
 
     def get_clicked_card(self, mouse_x, mouse_y) -> CardController:
         """Detects which column was clicked and returns the top card."""
@@ -172,17 +172,16 @@ class BoardController:
 
         card = from_column.top()
 
-        # ❌ Prevent moving to an empty column
         if to_column.is_empty():
-            print(f"❌ Invalid move: Cannot move {card} to an empty column!")
+            print(f"Invalid move: Cannot move {card} to an empty column!")
             return False  # Return immediately without popping
 
-        # ✅ Check if the move is valid
+        # Check if the move is valid
         if to_column.insert(card):
             from_column.pop()  # Remove only if move is valid
             return True
 
-        print(f"❌ Move {card} to column failed, returning card to original column!")
+        print(f"Move {card} to column failed, returning card to original column!")
         return False  # Invalid move
 
     def move_card_column_foundation(

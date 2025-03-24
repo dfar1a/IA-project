@@ -6,6 +6,7 @@ from controller import BoardController
 from heapq import *
 import random
 import importlib
+import multiprocessing
 
 
 class TreeNode:
@@ -96,46 +97,94 @@ def load_data_pickle(filename):
 
 
 class AsyncBFSSolver:
-
     learn = load_data_pickle("learn.data")
     _stop = False
 
     def __init__(self, game_board):
         self.initstate = game_board.model
         self.solution = None
-        self.thread = threading.Thread(target=self.run_bfs)
+        self.process = None
         self.running = False
+        self.result_queue = multiprocessing.Queue()
 
     def stop(self):
         AsyncBFSSolver._stop = True
+        if self.process and self.process.is_alive():
+            self.process.terminate()
 
     def save_data(self):
         save_data_pickle("learn.data", self.learn)
 
+    def _run_bfs_process(self, initstate, result_queue):
+        """Execute BFS in a separate process and put result in queue"""
+        AsyncBFSSolver._stop = False
+        print("AI process running")
+        v = TreeNode(initstate)
+        bfsSolver = importlib.import_module("bfsSolver")
+        solution = bfsSolver.bfs(v)
+
+        if solution:
+            print("Process found solution")
+            # Process the solution to create next moves
+            depth = 0
+            v = solution
+            while v.parent is not None:
+                data = AsyncBFSSolver.learn.get(hash(v.state))
+                if data is None or depth < data:
+                    AsyncBFSSolver.learn[hash(v.state)] = depth
+                depth += 1
+                parent = v.parent
+                parent.next = (v, parent.children[v])
+                v = parent
+
+            # Put the initial solution node in queue
+            result_queue.put(pickle.dumps(v))
+        else:
+            result_queue.put(None)
+
     def run_bfs(self):
-        """Executa BFS em background sem bloquear o jogo."""
+        """Start the BFS in a separate process"""
         AsyncBFSSolver._stop = False
         self.running = True
-        self.solution = run_ai(self.initstate)
-        self.running = False
+        # Create a non-daemon process
+        self.process = multiprocessing.Process(
+            target=self._run_bfs_process, args=(self.initstate, self.result_queue)
+        )
+        self.process.daemon = False  # Set to False to allow child processes
+        self.process.start()
+
+        # Poll for results in a separate thread
+        threading.Thread(target=self._monitor_process, daemon=True).start()
+
+    def _monitor_process(self):
+        """Monitor the BFS process and get result when ready"""
+        try:
+            result = self.result_queue.get(timeout=120)  # 2 minute timeout
+            if result:
+                self.solution = pickle.loads(result)
+        except:
+            self.solution = None
+        finally:
+            self.running = False
 
     def start(self):
-        """Inicia a pesquisa BFS numa thread separada."""
-        self.thread.start()
+        """Start the BFS process"""
+        self.run_bfs()
 
     def is_running(self):
-        """Verifica se a pesquisa ainda está a decorrer."""
+        """Check if BFS is still running"""
+        if self.process:
+            return self.process.is_alive() and self.running
         return self.running
 
     def get_solution(self):
-        """Retorna a solução se já tiver sido encontrada."""
+        """Return solution if found"""
         if not self.is_running():
             solution = self.solution
-            if solution != None and solution.next != None:
+            if solution is not None and solution.next is not None:
                 self.solution = solution.next[0]
             else:
                 self.solution = None
-
             return solution
         return None
 

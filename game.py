@@ -10,7 +10,7 @@ HEIGHT = 1000
 
 
 class SolitaireGame:
-    def __init__(self, use_ai=False):
+    def __init__(self, use_ai=True):
         # Game state variables
         self.use_ai = use_ai
         self.running = True

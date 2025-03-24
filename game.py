@@ -141,6 +141,7 @@ class SolitaireGame:
             state = self.solver.get_solution()
 
             if state is not None:
+                print(state.__str__())
                 execute_next_move(state, self.game_board)
                 self.board_state = hash(self.game_board.model)
             elif hash(self.game_board.model) != self.board_state:
@@ -153,9 +154,16 @@ class SolitaireGame:
     def run(self):
         """Main game loop"""
         while self.running:
-            self.update_ai()
-            self.game_board.update(self.screen)
+            # Handle events first (user input)
             self.handle_events()
+
+            # Update game board (handles animations)
+            self.game_board.update(self.screen)
+
+            # Update AI after game board update (so animations have started)
+            self.update_ai()
+
+            # Final display refresh
             pygame.display.update()
             self.clock.tick(60)
 
@@ -163,7 +171,7 @@ class SolitaireGame:
         pygame.quit()
 
 
-def main(use_ai=False):
+def main(use_ai=True):
     game = SolitaireGame(use_ai)
     game.run()
 

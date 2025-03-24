@@ -73,26 +73,28 @@ class FoundationController:
         return False
 
 
-def create_deck() -> list[CardController]:
+def create_deck(maxCard) -> list[CardController]:
     deck = [
-        CardController(c.CardValue(i // 4 + 1), c.CardSuite(i % 4)) for i in range(48)
+        CardController(c.CardValue(i // 4 + 1), c.CardSuite(i % 4)) for i in range((maxCard-1)*4)
     ]
-    kings = [
-        CardController(c.CardValue(c.CardValue.king), c.CardSuite(suite))
+    topCap = [
+        CardController(c.CardValue(maxCard), c.CardSuite(suite))
         for suite in c.CardSuite.get_suites()
     ]
+
     pos = set()
-    for i in range(len(kings)):
-        choice = r.randrange(0, 52, 4)
+    for i in range(len(topCap)):
+        choice = r.randrange(0, maxCard*4, 4)
+        print("king at: " + str(choice))
         while choice in pos:
             choice += 1
         pos.add(choice)
 
-    shuffled_deck = [None for i in range(52)]
+    shuffled_deck = [None for i in range(maxCard*4)]
 
     i = 0
     for p in pos:
-        shuffled_deck[p] = kings[i]
+        shuffled_deck[p] = topCap[i]
         i += 1
 
     r.shuffle(deck)
@@ -102,6 +104,7 @@ def create_deck() -> list[CardController]:
     for j in range(len(shuffled_deck)):
         if shuffled_deck[j] == None:
             shuffled_deck[j] = deck[i]
+            print("deck1: "+str(j)+". deck2: "+str(i))
             i += 1
 
     return shuffled_deck
@@ -118,16 +121,20 @@ class BoardController:
         foundation_x = start_x + column_width * 7 + 50  # More space from columns
         foundation_y = start_y
 
+        maxCard = 5
+        columnCount = 5
+
+
         # Shffle all cards except the kings
 
-        deck = create_deck()
+        deck = create_deck(maxCard)
 
         self.columns = [
             ColumnController(
-                deck[i * 4 : i * 4 + 4],
+                deck[i * ((maxCard*4)//columnCount) : (i+1) * ((maxCard*4)//columnCount)],
                 (start_x + (i % 7) * column_width, start_y + (i // 7) * row_spacing),
             )
-            for i in range(13)
+            for i in range(columnCount)
         ]
 
         self.foundations = [

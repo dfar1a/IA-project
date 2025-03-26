@@ -10,7 +10,7 @@ import multiprocessing
 
 
 class TreeNode:
-    def evaluate(state: b.Board):
+    def evaluate(self, state: b.Board):
         cost = AsyncBFSSolver.learn.get(hash(state))
         if cost != None:
             return -(10**3) // (cost + 1)
@@ -42,15 +42,15 @@ class TreeNode:
 
         score += 13 * 4 - sumLen
 
-        return score + random.random()
+        return score + random.random() + self.actualCost
 
     def __init__(self, state: b.Board, parent=None):
         self.state = state
         self.parent = parent
         self.children = dict()
         self.next = None
-        self.score = TreeNode.evaluate(state)
         self.actualCost = self.setActualCost()
+        self.score = self.evaluate(state)
 
     def setActualCost(self):
         if self.parent is not None:
@@ -177,7 +177,10 @@ class AsyncBFSSolver:
             return self.process.is_alive() and self.running
         return self.running
 
-    def get_solution(self):
+    def has_solution(self) -> bool:
+        return not self.is_running() and self.solution is not None
+
+    def extract_solution(self):
         """Return solution if found"""
         if not self.is_running():
             solution = self.solution

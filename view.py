@@ -1,8 +1,8 @@
 import cards as c
 import board as b
 import pygame
-import math
-
+import utils
+import game
 
 resources = "resources/"
 WIDTH = 1400
@@ -26,6 +26,12 @@ class CardView:
             pygame.image.load(self.__str__()), self.scale_factor
         )
 
+        # Glow effect properties
+        self.glow_enabled = False
+        self.glow_color = (255, 255, 100)  # Default yellow glow
+        self.glow_intensity = 0.7  # Between 0.0 and 1.0
+        self.glow_size = 10  # Pixels around the card
+
     def __str__(self):
         return self.dir + self.card.__str__() + self.image_extension
 
@@ -38,8 +44,70 @@ class CardView:
             ((self.dest[i] - self.pos[i]) * v) + self.pos[i] for i in range(2)
         )
 
+    def glow(self, enable=True, color=None, intensity=None, size=None):
+        """Enable or disable the glow effect and set its properties"""
+        self.glow_enabled = enable
+        if color is not None:
+            self.glow_color = color
+        if intensity is not None:
+            self.glow_intensity = max(0.0, min(1.0, intensity))  # Clamp between 0 and 1
+        if size is not None:
+            self.glow_size = max(1, size)  # Ensure positive size
+
+    def draw_glow(self, screen: pygame.Surface) -> None:
+        """Draw a glowing effect around the card"""
+        if not self.glow_enabled:
+            return
+
+        # Create a surface for the glow effect with alpha channel
+        glow_surface = pygame.Surface(
+            (self.width + self.glow_size * 2, self.height + self.glow_size * 2),
+            pygame.SRCALPHA,
+        )
+
+        # Calculate base alpha for the glow
+        base_alpha = int(150 * self.glow_intensity)
+
+        # Draw multiple rectangles with decreasing alpha for a soft glow
+        for i in range(self.glow_size, 0, -1):
+            # Calculate alpha for this layer (decreases as we move outward)
+            alpha = int(base_alpha * (i / self.glow_size))
+
+            # Create color with alpha
+            glow_color_with_alpha = (
+                self.glow_color[0],
+                self.glow_color[1],
+                self.glow_color[2],
+                alpha,
+            )
+
+            # Draw rounded rectangle for this glow layer
+            rect = pygame.Rect(
+                self.glow_size - i,
+                self.glow_size - i,
+                self.width + i * 2,
+                self.height + i * 2,
+            )
+            pygame.draw.rect(
+                glow_surface,
+                glow_color_with_alpha,
+                rect,
+                border_radius=8,  # Rounded corners
+            )
+
+        # Draw the glow surface on the screen
+        screen.blit(
+            glow_surface, (self.pos[0] - self.glow_size, self.pos[1] - self.glow_size)
+        )
+
     def draw(self, screen: pygame.Surface) -> None:
         self.move()
+
+        # Draw glow effect if enabled
+        if self.glow_enabled:
+            self.draw_glow(screen)
+
+        # Draw the card image
         screen.blit(self.image, self.pos)
 
 
@@ -59,37 +127,49 @@ class Placeholder:
 
 
 class CardColumnView(Placeholder):
-    gap = CardView.height * 0.26  # Space between stacked cards
 
     def __init__(self, cards: list[CardView], pos: tuple[int, int]):
+        self.gap = CardView.height * 0.26  # Space between stacked cards
         self.height = CardView.height
         self.cards = []
         super().__init__(pos)
         for card in cards:
-            card.setPos((self.pos[0], self.pos[1] + self.gap * len(self.cards)))
-            if len(self.cards) > 1:
-                self.height += self.gap
             self.cards.append(card)
+        self.positionCards()
+
+    def positionCards(self):
+        i = 0
+        for card in self.cards:
+            card.setPos((self.pos[0], self.pos[1] + self.gap * i))
+            i += 1
+        self.height = CardView.height + self.gap * (i - 1)
 
     def insert(self, card: CardView):
-        card.setPos((self.pos[0], self.pos[1] + self.gap * len(self.cards)))
-        if len(self.cards) > 1:
-            self.height += self.gap
+        self.gap = (
+            self.gap - CardView.height * 0.26 * (0.10)
+            if len(self.cards) > 5
+            else self.gap
+        )
         self.cards.append(card)
+        self.positionCards()
 
     def pop(self):
+        self.gap = (
+            self.gap + CardView.height * 0.26 * (0.10)
+            if len(self.cards) > 5
+            else self.gap
+        )
         self.cards.pop()
         if len(self.cards) > 1:
             self.height -= self.gap
+        self.positionCards()
 
     def draw(self, screen: pygame.Surface) -> None:
-        if len(self.cards) == 0:
-            super().draw(screen)
-        else:
-            pos = list(self.pos)
-            for card in self.cards:
-                card.draw(screen)
-                pos[1] += self.gap  # ✅ Stack cards correctly
+        super().draw(screen)
+        pos = list(self.pos)
+
+        for card in self.cards:
+            card.draw(screen)
 
 
 class FoundationView(Placeholder):
@@ -123,3 +203,64 @@ class BoardView:
             column.draw(screen)
         for foundation in self.foundations:
             foundation.draw(screen)
+
+
+class GameBar:
+    BAR_HEIGHT = 75
+
+    class Button(utils.Button):
+        BUTTON_HEIGHT = 30
+        last_button = 0
+
+        def __init__(self, text, hpos, callback, margin=0):
+            pos = (
+                (
+                    hpos
+                    if (hpos > (GameBar.Button.last_button + 20))
+                    else (GameBar.Button.last_button + 20)
+                ),
+                GameBar.BAR_HEIGHT / 2 - GameBar.Button.BUTTON_HEIGHT / 2,
+            )
+            font_size = 20
+            size = [len(text) * font_size * 0.4 + 20, GameBar.Button.BUTTON_HEIGHT]
+            GameBar.Button.last_button = pos[0] + size[0]
+            colors = {
+                "normal": (255, 187, 0),  # Dark gray
+                "hover": (250, 204, 77),  # Medium gray
+                "pressed": (219, 161, 0),  # Very dark gray
+                "disabled": (189, 139, 2),  # Light gray
+            }
+            super().__init__(
+                text, pos, size, callback, margin, font_size, colors, False
+            )
+
+    def __init__(self, context) -> None:
+        self.bar = pygame.rect.Rect(0, 0, WIDTH, GameBar.BAR_HEIGHT)
+        self.background = pygame.Color(37, 94, 46, a=12)
+        self.context = context
+        self.buttons = [
+            GameBar.Button("Undo", 50, lambda: print("pressed")),
+            GameBar.Button("Auto-complete", 100, self.context.toggle_ai),
+            GameBar.Button("Hint", 250, lambda: print("pressed")),
+        ]
+        self.lablels = [
+            utils.Label(
+                "Time:", "", (WIDTH - 250, GameBar.BAR_HEIGHT // 2 - 25 // 2), 25
+            )
+        ]
+
+    def ai_ready(self, state: bool) -> None:
+        self.buttons[1].set_enabled(state)
+        self.buttons[2].set_enabled(state)
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.background, self.bar)
+        for button in self.buttons:
+            button.draw(screen)
+        for label in self.lablels:
+            label.set_value(utils.format_time(pygame.time.get_ticks()))
+            label.draw(screen)
+
+    def check_click(self, event: pygame.event.Event) -> None:
+        for button in self.buttons:
+            button.check_click(event)

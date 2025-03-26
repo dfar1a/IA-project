@@ -30,17 +30,22 @@ class SolitaireGame:
 
         # Game components
         self.game_board = control.BoardController()
+        self.game_bar = v.GameBar(self)
 
         # AI solver
         self.solver = AsyncBFSSolver(self.game_board)
         self.solver.start()
         self.board_state = hash(self.game_board.model)
 
+    def toggle_ai(self):
+        self.use_ai = not self.use_ai
+
     def handle_events(self):
         """Handle pygame events and user interactions"""
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
         for event in pygame.event.get():
+            self.game_bar.check_click(event)
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -133,19 +138,23 @@ class SolitaireGame:
 
     def update_ai(self):
         """Update AI solver state and execute AI moves"""
+        if self.solver.has_solution():
+            self.game_bar.ai_ready(True)
+        else:
+            self.game_bar.ai_ready(False)
         if self.ai_paused or not self.use_ai:
             return
 
         # Check if it's time to make an AI move
         if pygame.time.get_ticks() % 500 < self.clock.get_time():
-            state = self.solver.get_solution()
+            state = self.solver.extract_solution()
 
             if state is not None:
-                print(state.__str__())
                 execute_next_move(state, self.game_board)
                 self.board_state = hash(self.game_board.model)
             elif hash(self.game_board.model) != self.board_state:
                 # Board state changed by user, restart solver
+                self.game_bar.ai_ready(False)
                 self.solver.stop()
                 self.solver = AsyncBFSSolver(self.game_board)
                 self.solver.start()
@@ -159,6 +168,7 @@ class SolitaireGame:
 
             # Update game board (handles animations)
             self.game_board.update(self.screen)
+            self.game_bar.draw(self.screen)
 
             # Update AI after game board update (so animations have started)
             self.update_ai()
@@ -171,7 +181,7 @@ class SolitaireGame:
         pygame.quit()
 
 
-def main(use_ai=True):
+def main(use_ai=False):
     game = SolitaireGame(use_ai)
     game.run()
 

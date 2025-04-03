@@ -47,8 +47,9 @@ class PauseMenu:
         """Create the default set of buttons for the pause menu"""
         button_width = 300
         button_height = 70
+        button_colors = {"normal": (227, 52, 52), "hover": (255, 56, 56)}
         button_x = (self.screen_width - button_width) // 2
-        start_y = self.panel_y + 150  # Start a bit higher to fit all buttons
+        start_y = self.panel_y + 75  # Start a bit higher to fit all buttons
         button_spacing = 90  # Slightly reduced spacing to fit all buttons
 
         # Resume button
@@ -63,7 +64,7 @@ class PauseMenu:
                 "hover_animation": True,
                 "rounded_corners": 15,
             },
-            colors={"normal": (80, 130, 80), "hover": (100, 160, 100)},  # Green
+            colors=button_colors,  # Green
         )
 
         # New Game button
@@ -78,7 +79,7 @@ class PauseMenu:
                 "hover_animation": True,
                 "rounded_corners": 15,
             },
-            colors={"normal": (80, 100, 150), "hover": (100, 120, 180)},  # Blue
+            colors=button_colors,  # Blue
         )
 
         # Main Menu button
@@ -93,7 +94,7 @@ class PauseMenu:
                 "hover_animation": True,
                 "rounded_corners": 15,
             },
-            colors={"normal": (120, 90, 150), "hover": (140, 110, 170)},  # Purple
+            colors=button_colors,  # Purple
         )
 
         # Exit button
@@ -108,7 +109,7 @@ class PauseMenu:
                 "hover_animation": True,
                 "rounded_corners": 15,
             },
-            colors={"normal": (150, 80, 80), "hover": (180, 100, 100)},  # Red
+            colors=button_colors,  # Red
         )
 
         # Add buttons to list
@@ -177,7 +178,7 @@ class PauseMenu:
         # Draw menu panel
         pygame.draw.rect(
             screen,
-            (50, 50, 60),
+            (33, 97, 31),
             (self.panel_x, self.panel_y, self.panel_width, self.panel_height),
             border_radius=20,
         )
@@ -185,7 +186,7 @@ class PauseMenu:
         # Add a subtle border
         pygame.draw.rect(
             screen,
-            (100, 100, 120),
+            (14, 43, 14),
             (self.panel_x, self.panel_y, self.panel_width, self.panel_height),
             width=2,
             border_radius=20,

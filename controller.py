@@ -58,8 +58,8 @@ class ColumnController:
 
 
 class FoundationController:
-    def __init__(self, suite: c.CardSuite, pos: tuple[int, int]):
-        self.model = b.Foundation(suite)
+    def __init__(self, pos: tuple[int, int]):
+        self.model = b.Foundation()
         self.view = v.FoundationView(pos)
         self.cards = list()
 
@@ -132,8 +132,7 @@ class BoardController:
 
         self.foundations = [
             FoundationController(
-                c.CardSuite.get_suites()[i],
-                (foundation_x, foundation_y + i * (v.CardView.height + 30)),
+                (foundation_x, foundation_y + i * (v.CardView.height + 30))
             )
             for i in range(4)
         ]

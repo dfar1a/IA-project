@@ -7,22 +7,18 @@ from heapq import *
 import random
 import importlib
 import multiprocessing
+import signal
 
 
 class TreeNode:
-    def evaluate(self, state: b.Board):
+    def evaluate(self, state: b.Board) -> float:
         cost = AsyncBFSSolver.learn.get(hash(state))
         if cost != None:
             return -(10**3) // (cost + 1)
 
         score = 0
         nextCards = {
-            (
-                c.Card(found.top().next, found.top().cardSuite)
-                if found.top() is not None
-                else c.Card(c.CardValue.ace, found.suite)
-            )
-            for found in state.foundations
+            (found.get_suite().value): (found.next()) for found in state.foundations
         }
 
         lenFounds = [len(found.cards) for found in state.foundations]
@@ -37,8 +33,20 @@ class TreeNode:
             #     score += 0.2 * (cards[i + 1].cardSuite != cards[i].cardSuite)
 
             for i, card in enumerate(cards):
-                if card in nextCards:
-                    score += 2 ** (len(cards) - i - 1)
+                # if card in nextCards:
+                #     score += len(cards) - i - 1
+                nextCard = nextCards.get(card.cardSuite.value)
+                if nextCard is None:
+                    nextCard = nextCards.get(c.CardSuite.any)
+                if card.cardValue.value - nextCard.cardValue.value < (
+                    len(cards) - i - 1
+                ):
+                    score += (
+                        len(cards)
+                        - i
+                        - 1
+                        - (card.cardValue.value - nextCard.cardValue.value)
+                    )
 
         score += 13 * 4 - sumLen
 
@@ -52,13 +60,13 @@ class TreeNode:
         self.actualCost = self.setActualCost()
         self.score = self.evaluate(state)
 
-    def setActualCost(self):
+    def setActualCost(self) -> float:
         if self.parent is not None:
             return self.parent.actualCost + 1
         else:
             return 0
 
-    def add_child(self, child_node, transition):
+    def add_child(self, child_node: "TreeNode", transition: tuple[str, int, int]):
         self.children[child_node] = transition
         child_node.parent = self
 
@@ -81,6 +89,13 @@ def execute_next_move(root: TreeNode, board: BoardController):
 
         return next
     return None
+
+
+def get_next_move(root: TreeNode, board: BoardController):
+    if root.next != None:
+        move = root.next[1]
+
+    return board.columns[move[1]].top()
 
 
 def save_data_pickle(filename, data):
@@ -121,6 +136,7 @@ class AsyncBFSSolver:
         print("AI process running")
         v = TreeNode(initstate)
         bfsSolver = importlib.import_module("bfsSolver")
+        signal.signal(signal.SIGTERM, bfsSolver.kill_all)
         solution = bfsSolver.bfs(v)
 
         if solution:
@@ -180,7 +196,12 @@ class AsyncBFSSolver:
     def has_solution(self) -> bool:
         return not self.is_running() and self.solution is not None
 
-    def extract_solution(self):
+    def get_solution(self) -> TreeNode:
+        if not self.is_running():
+            return self.solution
+        return None
+
+    def extract_solution(self) -> TreeNode:
         """Return solution if found"""
         if not self.is_running():
             solution = self.solution

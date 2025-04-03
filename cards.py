@@ -33,6 +33,7 @@ class CardSuite:
     spades = 1
     hearts = 2
     diamonds = 3
+    any = -1
 
     def __init__(self, value: int):
         self.value = value

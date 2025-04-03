@@ -5,6 +5,59 @@ import threading
 import pickle
 import time
 import os
+import signal
+
+_all_processes = []  # Global list to track all processes
+
+
+def terminate_all_processes():
+    """Terminate all running BFS solver processes"""
+    global _all_processes
+
+    if not _all_processes:
+        return
+
+    print(f"Terminating {len(_all_processes)} BFS processes...")
+
+    # First try to signal processes to stop gracefully
+    for p, stop_event in _all_processes:
+        if p.is_alive():
+            stop_event.set()
+
+    # Give processes a moment to terminate gracefully
+    time.sleep(0.2)
+
+    # Then forcefully terminate any remaining processes
+    for p, _ in _all_processes:
+        if p.is_alive():
+            try:
+                print(f"Forcefully terminating process {p.name} (PID: {p.pid})")
+                p.terminate()
+                p.join(0.5)
+
+                # If still alive on Unix systems, try SIGKILL
+                if p.is_alive() and hasattr(signal, "SIGKILL"):
+                    print(f"Sending SIGKILL to process {p.pid}")
+                    os.kill(p.pid, signal.SIGKILL)
+            except Exception as e:
+                print(f"Error terminating process: {e}")
+
+    # Clear the list
+    _all_processes.clear()
+    print("All BFS processes terminated")
+
+
+processes = []
+
+
+def kill_all(*args):
+    """Handler for external kill signals - terminates all processes"""
+    print("Received kill signal - terminating all processes")
+    terminate_all_processes()
+
+    # Exit more forcefully if being called from signal handler
+    if args:
+        os._exit(1)
 
 
 def bfs(root: solver.TreeNode) -> solver.TreeNode | None:
@@ -12,15 +65,13 @@ def bfs(root: solver.TreeNode) -> solver.TreeNode | None:
     # Check if we're already in a child process
     in_child_process = multiprocessing.current_process().name != "MainProcess"
 
-    if in_child_process:
-        # Use threading for nested process
-        return bfs_threading(root)
-    else:
-        # Use multiprocessing for main process
-        return bfs_distributed(root)
+    # Use multiprocessing for main process
+    return bfs_distributed(root)
 
 
-def expand_initial_nodes(root, num_nodes):
+def expand_initial_nodes(
+    root: solver.TreeNode, num_nodes: int
+) -> list[solver.TreeNode]:
     """Expand the root node to create starting points for different processes"""
     initial_nodes = []
     queue = [root]
@@ -69,57 +120,75 @@ def expand_initial_nodes(root, num_nodes):
 def bfs_distributed(root: solver.TreeNode) -> solver.TreeNode | None:
     """BFS implementation that distributes different starting nodes across processes"""
     print("Using distributed BFS with multiprocessing")
+    global _all_processes
+
+    # Terminate any existing processes first
+    terminate_all_processes()
 
     num_processes = max(1, multiprocessing.cpu_count() - 1)
 
     # Create initial nodes for distribution
     initial_nodes = expand_initial_nodes(root, num_processes)
 
-    # Check if we already found a solution during initial expansion
+    # Check for immediate solution
     if any(node.state.is_game_won() for node in initial_nodes):
-        for node in initial_nodes:
-            if node.state.is_game_won():
-                return node
+        return next(node for node in initial_nodes if node.state.is_game_won())
 
     # Set up multiprocessing resources
     solution_queue = multiprocessing.Queue()
     stop_event = multiprocessing.Event()
 
-    # Start a BFS process for each initial node
-    processes = []
-    for i, node in enumerate(initial_nodes):
-        process = multiprocessing.Process(
-            target=bfs_process_worker, args=(node, i, solution_queue, stop_event)
-        )
-        process.daemon = True
-        process.start()
-        processes.append(process)
-        time.sleep(0.05)  # Small delay to stagger startup
+    # Track processes for this run
+    run_processes = []
 
-    # Wait for a solution or timeout
-    solution = None
-    timeout = 60  # 1 minute timeout
-    start_time = time.time()
+    try:
+        # Start a BFS process for each initial node
+        for i, node in enumerate(initial_nodes):
+            process = multiprocessing.Process(
+                target=bfs_process_worker, args=(node, i, solution_queue, stop_event)
+            )
+            process.daemon = True
+            process.start()
+            run_processes.append(process)
+            # Track globally for cleanup
+            _all_processes.append((process, stop_event))
+            time.sleep(0.05)  # Small delay to stagger startup
 
-    while time.time() - start_time < timeout:
-        if not solution_queue.empty():
-            try:
-                solution_data = solution_queue.get(block=False)
-                solution = pickle.loads(solution_data)
-                stop_event.set()  # Signal all processes to stop
+        # Wait for a solution or timeout
+        solution = None
+        timeout = 60  # 1 minute timeout
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            if not solution_queue.empty():
+                try:
+                    solution_data = solution_queue.get(block=False)
+                    solution = pickle.loads(solution_data)
+                    stop_event.set()  # Signal all processes to stop
+                    break
+                except Exception as e:
+                    print(f"Error getting solution: {e}")
+            time.sleep(0.1)
+
+            # Check if any processes died unexpectedly
+            alive_count = sum(1 for p in run_processes if p.is_alive())
+            if alive_count == 0:
+                print("All processes terminated unexpectedly")
                 break
-            except:
-                pass
-        time.sleep(0.1)
 
-    # Signal processes to stop
-    stop_event.set()
+    finally:
+        # Always ensure processes are stopped
+        stop_event.set()
 
-    # Clean up processes
-    for p in processes:
-        p.join(1)  # Wait 1 second
-        if p.is_alive():
-            p.terminate()
+        # Clean up processes
+        for p in run_processes:
+            if p.is_alive():
+                p.join(0.5)  # Give a shorter timeout
+                if p.is_alive():
+                    p.terminate()
+
+        # Update global process list - remove terminated processes
+        _all_processes = [(p, e) for p, e in _all_processes if p.is_alive()]
 
     return solution
 
@@ -134,111 +203,15 @@ def bfs_process_worker(start_node, process_id, solution_queue, stop_event):
     states_processed = 0
     max_states = 10**5  # Limit states to process
 
-    # Move function mapping
-    move_card = {
-        solver.MoveType.foundation: solver.move_col_foundation,
-        solver.MoveType.column: solver.move_col_col,
-    }
+    # Better signal handling with nonlocal variable
+    should_exit = False
 
-    while queue and not stop_event.is_set() and states_processed < max_states:
-        current_board = heappop(queue)
+    def handle_signal(*args):
+        nonlocal should_exit
+        should_exit = True
 
-        # Check win condition
-        if current_board.state.is_game_won():
-            print(f"Process {process_id} found solution!")
-            solution_queue.put(pickle.dumps(current_board))
-            return
-
-        # Get possible moves
-        moves = solver.get_possible_moves(current_board.state)
-
-        # Explore each move
-        for move in moves[:8]:  # Limit moves per state
-            state = move_card[move[0]](current_board.state, move[1], move[2])
-
-            if state is None:
-                continue
-
-            state_hash = hash(state)
-            if state_hash in visited_states:
-                continue
-
-            visited_states.add(state_hash)
-
-            # Create new node and link to parent
-            node = solver.TreeNode(state)
-            node.parent = current_board
-            current_board.add_child(node, move)
-
-            # Add to queue
-            heappush(queue, node)
-
-        states_processed += 1
-
-        # Check stop event periodically
-        if states_processed % 100 == 0 and stop_event.is_set():
-            break
-
-    print(f"Process {process_id} finished after exploring {states_processed} states")
-
-
-def bfs_threading(root: solver.TreeNode) -> solver.TreeNode | None:
-    """BFS implementation using threads - for when we're already in a child process"""
-    print("Using threading-based BFS")
-
-    num_threads = max(1, multiprocessing.cpu_count() - 1)
-
-    # Create initial nodes for distribution
-    initial_nodes = expand_initial_nodes(root, num_threads)
-
-    # Check if we already found a solution during initial expansion
-    for node in initial_nodes:
-        if node.state.is_game_won():
-            return node
-
-    # Set up shared data structures
-    solution = [None]
-    solution_found = threading.Event()
-    threads = []
-
-    # Start a thread for each initial node
-    for i, node in enumerate(initial_nodes):
-        thread = threading.Thread(
-            target=bfs_thread_worker, args=(node, i, solution, solution_found)
-        )
-        thread.daemon = True
-        thread.start()
-        threads.append(thread)
-        time.sleep(0.02)  # Small delay to stagger startup
-
-    # Wait for a solution or timeout
-    timeout = 60  # 1 minute timeout
-    start_time = time.time()
-
-    while time.time() - start_time < timeout:
-        if solution_found.is_set():
-            break
-        time.sleep(0.1)
-
-    # Signal threads to stop
-    solution_found.set()
-
-    # Wait for threads to finish
-    for thread in threads:
-        thread.join(0.2)
-
-    return solution[0]
-
-
-def bfs_thread_worker(start_node, thread_id, solution, solution_found):
-    """Worker thread that performs BFS from a given starting node"""
-    print(f"Thread {thread_id} starting BFS from depth {start_node.actualCost}")
-
-    # Set up data structures for this thread
-    visited_states = {hash(start_node.state)}
-    queue = [start_node]
-    states_processed = 0
-    max_states = 5 * 10**4  # Limit states to process
+    # Set up signal handler
+    signal.signal(signal.SIGTERM, handle_signal)
 
     # Move function mapping
     move_card = {
@@ -246,44 +219,74 @@ def bfs_thread_worker(start_node, thread_id, solution, solution_found):
         solver.MoveType.column: solver.move_col_col,
     }
 
-    while queue and not solution_found.is_set() and states_processed < max_states:
-        current_board = heappop(queue)
+    try:
+        while (
+            queue
+            and not stop_event.is_set()
+            and not should_exit
+            and states_processed < max_states
+        ):
+            current_board = heappop(queue)
 
-        # Check win condition
-        if current_board.state.is_game_won():
-            print(f"Thread {thread_id} found solution!")
-            solution[0] = current_board
-            solution_found.set()
-            return
+            # Check win condition
+            if current_board.state.is_game_won():
+                print(f"Process {process_id} found solution!")
+                try:
+                    solution_queue.put(pickle.dumps(current_board))
+                except:
+                    print(f"Process {process_id} failed to put solution in queue")
+                return
 
-        # Get possible moves
-        moves = solver.get_possible_moves(current_board.state)
+            # Get possible moves
+            moves = solver.get_possible_moves(current_board.state)
 
-        # Explore each move
-        for move in moves[:8]:  # Limit moves per state
-            state = move_card[move[0]](current_board.state, move[1], move[2])
+            # Explore each move
+            for move in moves[:8]:  # Limit moves per state
+                if stop_event.is_set() or should_exit:
+                    break
 
-            if state is None:
-                continue
+                state = move_card[move[0]](current_board.state, move[1], move[2])
 
-            state_hash = hash(state)
-            if state_hash in visited_states:
-                continue
+                if state is None:
+                    continue
 
-            visited_states.add(state_hash)
+                state_hash = hash(state)
+                if state_hash in visited_states:
+                    continue
 
-            # Create new node and link to parent
-            node = solver.TreeNode(state)
-            node.parent = current_board
-            current_board.add_child(node, move)
+                visited_states.add(state_hash)
 
-            # Add to queue
-            heappush(queue, node)
+                # Create new node and link to parent
+                node = solver.TreeNode(state)
+                node.parent = current_board
+                current_board.add_child(node, move)
 
-        states_processed += 1
+                # Add to queue
+                heappush(queue, node)
 
-        # Check solution found periodically
-        if states_processed % 100 == 0 and solution_found.is_set():
-            break
+            states_processed += 1
 
-    print(f"Thread {thread_id} finished after exploring {states_processed} states")
+            # Check stop event periodically to reduce CPU usage
+            if states_processed % 100 == 0:
+                if stop_event.is_set() or should_exit:
+                    break
+    except Exception as e:
+        print(f"Process {process_id} error: {e}")
+    finally:
+        pass
+
+
+class AsyncBFSSolver:
+    _stop = False
+
+    def __init__(self):
+        self.process = None
+
+    def stop(self):
+        AsyncBFSSolver._stop = True
+        if self.process and self.process.is_alive():
+            self.process.terminate()
+        # Also stop all BFS worker processes
+        import bfsSolver  # Import here to avoid circular imports
+
+        bfsSolver.terminate_all_processes()

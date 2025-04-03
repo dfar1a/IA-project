@@ -2,7 +2,8 @@ import pygame
 import cards as c
 import view as v
 import controller as control
-from solver import AsyncBFSSolver, execute_next_move
+from solver import AsyncBFSSolver, execute_next_move, get_next_move
+import utils
 
 # Increased window size for better spacing and proper alignment
 WIDTH = 1400
@@ -84,9 +85,9 @@ class SolitaireGame:
         if not self.selected_card:
             return
 
-        valid_move = self.try_move_to_column(event.pos) or self.try_move_to_foundation(
-            event.pos
-        )
+        valid_move = self.try_move_to_column(
+            self.selected_card
+        ) or self.try_move_to_foundation(self.selected_card)
 
         # If move is invalid, return card to original column
         if not valid_move:
@@ -99,9 +100,8 @@ class SolitaireGame:
             self.selected_card.view.dest = (
                 self.original_column.view.pos[0],
                 self.original_column.view.pos[1]
-                + self.original_column.view.height
-                - v.CardView.height
-                + self.original_column.view.gap,
+                + self.original_column.view.size[1]
+                - v.CardView.height,
             )
             self.original_column.insert(self.selected_card)
 
@@ -110,25 +110,27 @@ class SolitaireGame:
         self.dragging = False
         self.ai_paused = False  # Resume the AI when dragging stops
 
-    def try_move_to_column(self, pos):
+    def try_move_to_column(self, card):
         """Try to move the selected card to a column"""
         for col in self.game_board.columns:
-            col_x, col_y = col.view.pos
-            if (
-                col_x <= pos[0] <= col_x + v.CardView.width
-                and col_y <= pos[1] <= col_y + col.view.height
+            if utils.collide(
+                col.view.pos,
+                col.view.size,
+                self.selected_card.view.pos,
+                (v.CardView.width, v.CardView.height),
             ):
                 if self.game_board.move_card_column_column(self.original_column, col):
                     return True
         return False
 
-    def try_move_to_foundation(self, pos):
+    def try_move_to_foundation(self, card):
         """Try to move the selected card to a foundation"""
         for foundation in self.game_board.foundations:
-            found_x, found_y = foundation.view.pos
-            if (
-                found_x <= pos[0] <= found_x + v.CardView.width
-                and found_y <= pos[1] <= found_y + v.CardView.height
+            if utils.collide(
+                foundation.view.pos,
+                foundation.view.size,
+                self.selected_card.view.pos,
+                (v.CardView.width, v.CardView.height),
             ):
                 if self.game_board.move_card_column_foundation(
                     self.original_column, foundation
@@ -136,12 +138,27 @@ class SolitaireGame:
                     return True
         return False
 
+    def set_hint(self):
+        print("hint")
+        sol = self.solver.get_solution()
+        if sol is not None:
+            get_next_move(sol, self.game_board).view.glow(True)
+
     def update_ai(self):
         """Update AI solver state and execute AI moves"""
         if self.solver.has_solution():
             self.game_bar.ai_ready(True)
         else:
             self.game_bar.ai_ready(False)
+
+        if hash(self.game_board.model) != self.board_state:
+            # Board state changed by user, restart solver
+            self.game_bar.ai_ready(False)
+            self.solver.stop()
+            self.solver = AsyncBFSSolver(self.game_board)
+            self.solver.start()
+            self.board_state = hash(self.game_board.model)
+
         if self.ai_paused or not self.use_ai:
             return
 
@@ -151,13 +168,6 @@ class SolitaireGame:
 
             if state is not None:
                 execute_next_move(state, self.game_board)
-                self.board_state = hash(self.game_board.model)
-            elif hash(self.game_board.model) != self.board_state:
-                # Board state changed by user, restart solver
-                self.game_bar.ai_ready(False)
-                self.solver.stop()
-                self.solver = AsyncBFSSolver(self.game_board)
-                self.solver.start()
                 self.board_state = hash(self.game_board.model)
 
     def run(self):
@@ -176,7 +186,7 @@ class SolitaireGame:
             # Final display refresh
             pygame.display.update()
             self.clock.tick(60)
-
+        self.solver.stop()
         self.solver.save_data()
         pygame.quit()
 

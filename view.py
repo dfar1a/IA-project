@@ -3,6 +3,8 @@ import board as b
 import pygame
 import utils
 import game
+import time
+import math
 
 resources = "resources/"
 WIDTH = 1400
@@ -47,6 +49,7 @@ class CardView:
     def glow(self, enable=True, color=None, intensity=None, size=None):
         """Enable or disable the glow effect and set its properties"""
         self.glow_enabled = enable
+        self.time = time.time()
         if color is not None:
             self.glow_color = color
         if intensity is not None:
@@ -56,8 +59,12 @@ class CardView:
 
     def draw_glow(self, screen: pygame.Surface) -> None:
         """Draw a glowing effect around the card"""
+        if (time.time() - self.time) > 2 * math.pi:
+            self.glow_enabled = False
         if not self.glow_enabled:
             return
+
+        self.glow_intensity = abs(math.sin(time.time() - self.time))
 
         # Create a surface for the glow effect with alpha channel
         glow_surface = pygame.Surface(
@@ -130,7 +137,7 @@ class CardColumnView(Placeholder):
 
     def __init__(self, cards: list[CardView], pos: tuple[int, int]):
         self.gap = CardView.height * 0.26  # Space between stacked cards
-        self.height = CardView.height
+        self.size = [CardView.width, CardView.height]
         self.cards = []
         super().__init__(pos)
         for card in cards:
@@ -142,7 +149,7 @@ class CardColumnView(Placeholder):
         for card in self.cards:
             card.setPos((self.pos[0], self.pos[1] + self.gap * i))
             i += 1
-        self.height = CardView.height + self.gap * (i - 1)
+        self.size[1] = CardView.height + self.gap * (i - 1)
 
     def insert(self, card: CardView):
         self.gap = (
@@ -161,7 +168,7 @@ class CardColumnView(Placeholder):
         )
         self.cards.pop()
         if len(self.cards) > 1:
-            self.height -= self.gap
+            self.size[1] -= self.gap
         self.positionCards()
 
     def draw(self, screen: pygame.Surface) -> None:
@@ -173,6 +180,8 @@ class CardColumnView(Placeholder):
 
 
 class FoundationView(Placeholder):
+    size = (CardView.width, CardView.height)
+
     def __init__(self, pos: tuple[int, int]):
         self.cards = []
         super().__init__(pos)
@@ -241,7 +250,7 @@ class GameBar:
         self.buttons = [
             GameBar.Button("Undo", 50, lambda: print("pressed")),
             GameBar.Button("Auto-complete", 100, self.context.toggle_ai),
-            GameBar.Button("Hint", 250, lambda: print("pressed")),
+            GameBar.Button("Hint", 250, self.context.set_hint),
         ]
         self.lablels = [
             utils.Label(

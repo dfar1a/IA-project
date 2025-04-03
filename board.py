@@ -45,18 +45,31 @@ class CardColumn:
 
 
 class Foundation:
-    def __init__(self, suite: c.CardSuite, cards=tuple()):
+    def __init__(self, cards=tuple()):
         self.cards = tuple(cards)
-        self.suite = suite
 
     def copy(self):
-        return Foundation(self.suite, self.cards)
+        return Foundation(self.cards)
+
+    def get_suite(self) -> c.CardSuite:
+        return (
+            self.top().cardSuite
+            if self.top() is not None
+            else c.CardSuite(c.CardSuite.any)
+        )
 
     def is_empty(self):
         return len(self.cards) == 0
 
     def top(self) -> c.Card | None:
         return self.cards[-1] if self.cards else None
+
+    def next(self) -> c.Card:
+        next = self.top()
+        if next is None:
+            return c.Card(c.CardValue(c.CardValue.ace), self.get_suite())
+        else:
+            return c.Card(next.next(), self.get_suite())
 
     def can_insert(self, card: c.Card) -> bool:
         emptyAndAce = self.is_empty() and card.cardValue.value == c.CardValue.ace

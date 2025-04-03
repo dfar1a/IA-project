@@ -748,3 +748,31 @@ class Label:
 def format_time(time: int):
     time //= 1000
     return str(time // 60).zfill(2) + ":" + str(time % 60).zfill(2)
+
+
+def collide(
+    pos1: tuple[int, int],
+    size1: tuple[int, int],
+    pos2: tuple[int, int],
+    size2: tuple[int, int],
+):
+    """
+    Check if two rectangular areas collide.
+
+    Args:
+        pos1 (tuple[int, int]): Top-left corner of the first rectangle (x, y).
+        size1 (tuple[int, int]): Size of the first rectangle (width, height).
+        pos2 (tuple[int, int]): Top-left corner of the second rectangle (x, y).
+        size2 (tuple[int, int]): Size of the second rectangle (width, height).
+
+    Returns:
+        bool: True if the rectangles collide, False otherwise.
+    """
+    collision = all(
+        pos1[i] <= pos2[i]
+        and pos1[i] + size1[i] >= pos2[i]
+        or pos2[i] <= pos1[i]
+        and pos2[i] + size2[i] >= pos1[i]
+        for i in range(2)
+    )
+    return collision

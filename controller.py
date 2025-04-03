@@ -68,9 +68,9 @@ class FoundationController:
             self.cards.append(card)
             self.view.insert(card.view)
             print(f"Inserted {card} into foundation, updating UI")
-
             return True
         return False
+
 
 
 def create_deck() -> list[CardController]:
@@ -190,19 +190,35 @@ class BoardController:
         self, from_column: ColumnController, foundation: FoundationController
     ) -> bool:
         """Moves a card from a column to a foundation if valid."""
-        card = from_column.top()
         if from_column.is_empty():
             return False
 
-        print(f"[DEBUG] Attempting to move {card} to foundation...")  # ADD THIS PRINT
+        card = from_column.top()
+        print(f"[DEBUG] Attempting to move {card} to foundation...")
 
         if foundation.insert(card):
             self.moves += 1
-            print(
-                f"[DEBUG] Move successful: {card} placed on foundation."
-            )  # ADD THIS PRINT
-            from_column.pop()  # Remove only if move is valid
+            from_column.pop()
+
+            # Update board model
+            self.model = b.Board(
+                [col.model for col in self.columns],
+                [f.model for f in self.foundations],
+            )
+
             return True
 
-        print(f"[DEBUG] Move failed: {card} cannot go to foundation.")  # ADD THIS PRINT
-        return False  # Invalid move
+        print(f"[DEBUG] Move failed: {card} cannot go to foundation.")
+        return False
+    
+    def is_game_won_visual(self) -> bool:
+        """Only return True if all foundations show a King on top (visually)."""
+        from cards import CardValue
+        for foundation in self.foundations:
+            if not foundation.cards:
+                return False
+            top_card = foundation.cards[-1].model
+            if top_card.cardValue.value != CardValue.king:
+                return False
+        return True
+

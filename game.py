@@ -6,7 +6,7 @@ from solver import AsyncBFSSolver, execute_next_move, get_next_move
 import utils
 from stopwatch import Stopwatch
 from pause_menu import PauseMenu
-
+import json
 # Increased window size for better spacing and proper alignment
 WIDTH = 1400
 HEIGHT = 1000
@@ -234,6 +234,90 @@ class SolitaireGame:
             self.solver.stop()
             self.solver.save_data()
 
+    def display_win_message(self):
+        # Get the time in seconds
+        elapsed_ms = pygame.time.get_ticks()
+        elapsed_time = elapsed_ms // 1000  # whole seconds
+        time_str = f"{elapsed_time}s"
+
+        font = pygame.font.Font(None, 80)
+        small_font = pygame.font.Font(None, 40)
+
+        message = font.render("🎉 You Won! 🎉", True, (255, 255, 0))
+        message_rect = message.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 180))
+
+        # Input setup
+        input_box = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 70, 300, 50)
+        name = ""
+        input_color = pygame.Color("dodgerblue2")
+
+        # Buttons
+        button_font = pygame.font.Font(None, 50)
+        play_button_rect = pygame.Rect(WIDTH // 2 - 160, HEIGHT // 2 + 10, 320, 70)
+        menu_button_rect = pygame.Rect(WIDTH // 2 - 160, HEIGHT // 2 + 100, 320, 70)
+        play_text = button_font.render("Play Again", True, (0, 0, 0))
+        menu_text = button_font.render("Main Menu", True, (0, 0, 0))
+
+        while True:
+            self.screen.fill((0, 128, 0))
+            self.game_board.update(self.screen)
+            self.game_bar.draw(self.screen)
+
+            # Draw win message and input prompt
+            self.screen.blit(message, message_rect)
+            prompt = small_font.render("Enter your name:", True, (255, 255, 255))
+            self.screen.blit(prompt, (input_box.x, input_box.y - 35))
+
+            name_text = small_font.render(name, True, input_color)
+            self.screen.blit(name_text, (input_box.x + 5, input_box.y + 10))
+            pygame.draw.rect(self.screen, input_color, input_box, 2)
+
+            # Draw buttons
+            pygame.draw.rect(self.screen, (255, 215, 0), play_button_rect, border_radius=10)
+            pygame.draw.rect(self.screen, (255, 165, 0), menu_button_rect, border_radius=10)
+            self.screen.blit(play_text, play_text.get_rect(center=play_button_rect.center))
+            self.screen.blit(menu_text, menu_text.get_rect(center=menu_button_rect.center))
+
+            pygame.display.update()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        self.save_score(name.strip() or "Anonymous", time_str)
+                        self.new_game()
+                        return
+                    elif event.key == pygame.K_BACKSPACE:
+                        name = name[:-1]
+                    else:
+                        if len(name) < 20:
+                            name += event.unicode
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if play_button_rect.collidepoint(event.pos):
+                        self.save_score(name.strip() or "Anonymous", time_str)
+                        self.new_game()
+                        return
+                    elif menu_button_rect.collidepoint(event.pos):
+                        self.save_score(name.strip() or "Anonymous", time_str)
+                        self.return_to_main_menu()
+                        return
+
+
+    def save_score(self, name, time_str):
+        data = {"name": name, "time": time_str}
+        try:
+            with open("scores.json", "r") as f:
+                scores = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            scores = []
+
+        scores.append(data)
+
+        with open("scores.json", "w") as f:
+            json.dump(scores, f, indent=4)
+
     def run(self):
         """Main game loop"""
         try:
@@ -254,6 +338,13 @@ class SolitaireGame:
                 # Final display refresh
                 pygame.display.update()
                 self.clock.tick(60)
+
+               # Add this inside your main loop, after everything is drawn:
+                # Check both model AND view are fully synced to Kings on foundations
+                if self.game_board.model.is_game_won() and self.game_board.is_game_won_visual():
+                    self.game_stopwatch.stop() 
+                    self.display_win_message()
+
         finally:
             # Always clean up resources, even if there's an error
             self.cleanup()

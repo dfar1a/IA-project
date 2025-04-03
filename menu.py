@@ -27,6 +27,64 @@ def get_video_frame(cap):
     )  # Convert to pygame Surface
     return frame
 
+def show_highscores(screen):
+    import json
+
+    try:
+        with open("scores.json", "r") as f:
+            scores = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        scores = []
+
+    # Convert and sort scores
+    def time_in_seconds(score):
+        try:
+            return int(score["time"].replace("s", ""))
+        except:
+            return float("inf")
+
+    scores.sort(key=time_in_seconds)
+    top_scores = scores[:3]
+
+    font_title = pygame.font.Font(None, 80)
+    font_entry = pygame.font.Font(None, 50)
+    font_back = pygame.font.Font(None, 36)
+
+    screen.fill((0, 128, 0))  # Background color
+
+    # Title
+    title_text = font_title.render("Melhores Pontuações", True, (255, 255, 255))
+    screen.blit(title_text, title_text.get_rect(center=(WIDTH // 2, 120)))
+
+    medals = ["1st - ", "2nd - ", "3rd -"]
+
+    if top_scores:
+        for i, entry in enumerate(top_scores):
+            name = entry.get("name", "Anônimo")
+            time = entry.get("time", "??s")
+            text = f"{medals[i]} {name:<15} - {time}"
+            entry_surface = font_entry.render(text, True, (255, 255, 255))
+            screen.blit(entry_surface, (WIDTH // 2 - 200, 220 + i * 80))
+    else:
+        no_scores = font_entry.render("Nenhuma pontuação salva!", True, (255, 255, 255))
+        screen.blit(no_scores, no_scores.get_rect(center=(WIDTH // 2, 300)))
+
+    # Back instructions
+    back_text = font_back.render("Pressione [ESC] para voltar", True, (200, 200, 200))
+    screen.blit(back_text, back_text.get_rect(center=(WIDTH // 2, HEIGHT - 80)))
+
+    pygame.display.flip()
+
+    # Wait for ESC
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                waiting = False
+
 
 class MenuButton(utils.Button):
     def __init__(self, text, pos, callback):
@@ -79,7 +137,7 @@ def menu():
         return None
 
     def show_high_score():
-        print("High score not implemented.")
+        show_highscores(screen)
         return None
 
     def quit_game():
@@ -133,8 +191,12 @@ def menu():
 
 
 if __name__ == "__main__":
-    action = menu()
-    if action == "START_GAME":
-        g.main()
-    pygame.quit()
-    sys.exit()
+    try:
+        action = menu()
+        if action == "START_GAME":
+            g.main()
+    except Exception as e:
+        print("Menu crashed:", e)
+    finally:
+        pygame.quit()
+        sys.exit(0)  # Always exit cleanly, don't crash run.py

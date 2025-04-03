@@ -19,20 +19,26 @@ class Button:
         enabled: Whether the button is enabled (clickable)
         visible: Whether the button is visible
         effects: Dictionary of visual effects to apply
+        icon: Optional icon to display on the button
+        icon_size: Size of the icon
+        icon_position: Position of the icon relative to the text
     """
 
     def __init__(
         self,
-        text: str,
-        pos: Tuple[int, int],
-        size: Tuple[int, int],
-        callback: Callable[[], None],
+        text: str = "",
+        pos: Tuple[int, int] = (0, 0),
+        size: Tuple[int, int] = (200, 60),
+        callback: Callable[[], None] = lambda: None,
         margin: int = 0,
         font_size: int = 50,
         colors: Optional[dict] = None,
         enabled: bool = True,
         visible: bool = True,
         effects: Optional[dict] = None,
+        icon: Optional[pygame.Surface] = None,
+        icon_size: Optional[Tuple[int, int]] = None,
+        icon_position: str = "left",  # "left", "right", "top", "bottom", "center"
     ):
         self.text = text
         self.pos = pos
@@ -46,6 +52,22 @@ class Button:
         self.font = pygame.font.Font(None, font_size)
         self.enabled = enabled
         self.visible = visible
+
+        # Icon properties
+        self.icon = icon
+        self.icon_position = icon_position
+        self.icon_size = icon_size
+
+        # Scale icon if size is provided
+        if self.icon is not None and self.icon_size is not None:
+            self.icon = pygame.transform.smoothscale(self.icon, self.icon_size)
+        elif self.icon is not None:
+            # Default icon size if not specified
+            icon_height = min(self.rect.height - 20, self.icon.get_height())
+            icon_scale = icon_height / self.icon.get_height()
+            icon_width = int(self.icon.get_width() * icon_scale)
+            self.icon_size = (icon_width, icon_height)
+            self.icon = pygame.transform.smoothscale(self.icon, self.icon_size)
 
         # Animation timing
         self.animation_time = 0
@@ -295,19 +317,109 @@ class Button:
             # Apply the pulse effect
             screen.blit(pulse_surface, (scaled_rect.x, scaled_rect.y))
 
-        # Draw button text with optional shadow
-        text_surface = self.font.render(self.text, True, text_color)
-        text_rect = text_surface.get_rect(center=scaled_rect.center)
+        # Calculate text and icon positions
+        has_text = self.text != ""
+        has_icon = self.icon is not None
 
-        if self.effects["text_shadow"]:
+        # Calculate available space inside button
+        inner_width = scaled_rect.width - 20  # 10px padding on each side
+        inner_height = scaled_rect.height - 20  # 10px padding on each side
+
+        # Text surface
+        if has_text:
+            text_surface = self.font.render(self.text, True, text_color)
+            text_width, text_height = text_surface.get_size()
+        else:
+            text_width, text_height = 0, 0
+
+        # Icon size
+        if has_icon:
+            icon_width, icon_height = self.icon_size
+        else:
+            icon_width, icon_height = 0, 0
+
+        # Position both text and icon according to layout
+        if not has_icon:
+            # Text only
+            if has_text:
+                text_x = scaled_rect.centerx - text_width // 2
+                text_y = scaled_rect.centery - text_height // 2
+
+        elif not has_text:
+            # Icon only
+            icon_x = scaled_rect.centerx - icon_width // 2
+            icon_y = scaled_rect.centery - icon_height // 2
+
+        else:
+            # Both icon and text
+            spacing = 10  # Space between icon and text
+
+            if self.icon_position == "left":
+                # Icon on left, text on right
+                total_width = icon_width + spacing + text_width
+                icon_x = scaled_rect.centerx - total_width // 2
+                text_x = icon_x + icon_width + spacing
+                icon_y = scaled_rect.centery - icon_height // 2
+                text_y = scaled_rect.centery - text_height // 2
+
+            elif self.icon_position == "right":
+                # Icon on right, text on left
+                total_width = text_width + spacing + icon_width
+                text_x = scaled_rect.centerx - total_width // 2
+                icon_x = text_x + text_width + spacing
+                icon_y = scaled_rect.centery - icon_height // 2
+                text_y = scaled_rect.centery - text_height // 2
+
+            elif self.icon_position == "top":
+                # Icon on top, text below
+                total_height = icon_height + spacing + text_height
+                icon_x = scaled_rect.centerx - icon_width // 2
+                icon_y = scaled_rect.centery - total_height // 2
+                text_x = scaled_rect.centerx - text_width // 2
+                text_y = icon_y + icon_height + spacing
+
+            elif self.icon_position == "bottom":
+                # Icon on bottom, text above
+                total_height = text_height + spacing + icon_height
+                text_x = scaled_rect.centerx - text_width // 2
+                text_y = scaled_rect.centery - total_height // 2
+                icon_x = scaled_rect.centerx - icon_width // 2
+                icon_y = text_y + text_height + spacing
+
+            elif self.icon_position == "center":
+                # Icon in center (behind text)
+                icon_x = scaled_rect.centerx - icon_width // 2
+                icon_y = scaled_rect.centery - icon_height // 2
+                text_x = scaled_rect.centerx - text_width // 2
+                text_y = scaled_rect.centery - text_height // 2
+
+        # Draw text shadow if enabled
+        if has_text and self.effects["text_shadow"]:
             # Draw text shadow
             shadow_surface = self.font.render(self.text, True, (20, 20, 20))
             shadow_rect = shadow_surface.get_rect(
-                center=(text_rect.centerx + 2, text_rect.centery + 2)
+                center=(text_x + text_width // 2 + 2, text_y + text_height // 2 + 2)
             )
             screen.blit(shadow_surface, shadow_rect)
 
-        screen.blit(text_surface, text_rect)
+        # Draw icon with optional shadow
+        if has_icon:
+            if self.effects["text_shadow"]:  # Use same shadow effect for icon
+                # Create a darkened version of the icon for shadow
+                shadow_icon = self.icon.copy()
+                shadow_overlay = pygame.Surface(self.icon_size, pygame.SRCALPHA)
+                shadow_overlay.fill((0, 0, 0, 180))
+                shadow_icon.blit(
+                    shadow_overlay, (0, 0), special_flags=pygame.BLEND_RGBA_MULT
+                )
+                screen.blit(shadow_icon, (icon_x + 2, icon_y + 2))
+
+            # Draw the actual icon
+            screen.blit(self.icon, (icon_x, icon_y))
+
+        # Draw the text
+        if has_text:
+            screen.blit(text_surface, (text_x, text_y))
 
         # Draw particles for click effect
         if self.effects["particle_effect"] and self.particles:
@@ -463,6 +575,31 @@ class Button:
     def is_hovered(self) -> bool:
         """Check if the mouse is hovering over the button"""
         return self.rect.collidepoint(pygame.mouse.get_pos())
+
+    def set_icon(self, icon: pygame.Surface, size: Optional[Tuple[int, int]] = None):
+        """Set or change the button's icon"""
+        self.icon = icon
+
+        if size is not None:
+            self.icon_size = size
+            self.icon = pygame.transform.smoothscale(self.icon, size)
+        else:
+            # Auto-size icon to fit button height
+            icon_height = min(self.rect.height - 20, self.icon.get_height())
+            icon_scale = icon_height / self.icon.get_height()
+            icon_width = int(self.icon.get_width() * icon_scale)
+            self.icon_size = (icon_width, icon_height)
+            self.icon = pygame.transform.smoothscale(self.icon, self.icon_size)
+
+    def set_icon_position(self, position: str):
+        """Set the position of the icon relative to text"""
+        valid_positions = ["left", "right", "top", "bottom", "center"]
+        if position in valid_positions:
+            self.icon_position = position
+        else:
+            raise ValueError(
+                f"Invalid icon position. Must be one of: {valid_positions}"
+            )
 
 
 class Label:

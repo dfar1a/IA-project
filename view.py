@@ -1,3 +1,4 @@
+from typing import Optional
 import cards as c
 import board as b
 import pygame
@@ -219,43 +220,96 @@ class GameBar:
 
     class Button(utils.Button):
         BUTTON_HEIGHT = 30
-        last_button = 0
 
-        def __init__(self, text, hpos, callback, margin=0):
+        def __init__(
+            self,
+            text,
+            xpos,  # Absolute x position (not relative)
+            callback,
+            margin=0,
+            enabled=True,  # Changed default to enabled=True
+            icon: Optional[pygame.surface.Surface] = None,
+            icon_position: str = "left",
+        ):
+            # Position calculation
             pos = (
-                (
-                    hpos
-                    if (hpos > (GameBar.Button.last_button + 20))
-                    else (GameBar.Button.last_button + 20)
-                ),
+                xpos,
                 GameBar.BAR_HEIGHT / 2 - GameBar.Button.BUTTON_HEIGHT / 2,
             )
+
+            # Font and size calculation
             font_size = 20
-            size = [len(text) * font_size * 0.4 + 20, GameBar.Button.BUTTON_HEIGHT]
-            GameBar.Button.last_button = pos[0] + size[0]
+
+            # Calculate button width based on text length and icon
+            text_width = len(text) * font_size * 0.4 + 30 if text else 0
+            icon_width = 0
+
+            if icon is not None:
+                # Scale icon to match button height
+                scaled_height = GameBar.Button.BUTTON_HEIGHT * 0.8  # Slightly smaller
+                scale_factor = scaled_height / icon.get_height()
+                icon_width = icon.get_width() * scale_factor
+                icon = pygame.transform.scale(icon, (icon_width, scaled_height))
+
+                # Add space for icon if text exists
+                if text:
+                    text_width += 10  # Add spacing between icon and text
+
+            # Set final button size
+            size = [max(text_width + icon_width, 40), GameBar.Button.BUTTON_HEIGHT]
+
+            # Button colors - gold/yellow theme
             colors = {
-                "normal": (255, 187, 0),  # Dark gray
-                "hover": (250, 204, 77),  # Medium gray
-                "pressed": (219, 161, 0),  # Very dark gray
-                "disabled": (189, 139, 2),  # Light gray
+                "normal": (255, 187, 0),  # Gold
+                "hover": (250, 204, 77),  # Lighter gold
+                "pressed": (219, 161, 0),  # Darker gold
+                "disabled": (194, 144, 0),  # Even darker gold when disabled
+                "text": (255, 255, 255),  # White text
             }
+
+            # Create the button
             super().__init__(
-                text, pos, size, callback, margin, font_size, colors, False
+                text,
+                pos,
+                size,
+                callback,
+                margin,
+                font_size,
+                colors,
+                enabled,
+                visible=True,
+                icon=icon,
+                icon_position=icon_position,
+                effects={"rounded_corners": 15, "hover_animation": True},
             )
 
     def __init__(self, context) -> None:
         self.bar = pygame.rect.Rect(0, 0, WIDTH, GameBar.BAR_HEIGHT)
         self.background = pygame.Color(37, 94, 46, a=12)
         self.context = context
+        icons = {"play-pause": pygame.image.load("resources/icons/play_pause.png")}
         self.buttons = [
             GameBar.Button("Undo", 50, lambda: print("pressed")),
-            GameBar.Button("Auto-complete", 100, self.context.toggle_ai),
-            GameBar.Button("Hint", 250, self.context.set_hint),
+            GameBar.Button("Auto-complete", 140, self.context.toggle_ai),
+            GameBar.Button("Hint", 300, self.context.set_hint),
+            GameBar.Button(
+                "",
+                WIDTH - 100,
+                self.context.pause_play,
+                enabled=True,
+                icon=icons["play-pause"],
+            ),
         ]
         self.lablels = [
             utils.Label(
                 "Time:", "", (WIDTH - 250, GameBar.BAR_HEIGHT // 2 - 25 // 2), 25
-            )
+            ),
+            utils.Label(
+                "Moves:",
+                "",
+                (WIDTH - 400, GameBar.BAR_HEIGHT // 2 - 25 // 2),
+                25,
+            ),
         ]
 
     def ai_ready(self, state: bool) -> None:
@@ -266,8 +320,11 @@ class GameBar:
         pygame.draw.rect(screen, self.background, self.bar)
         for button in self.buttons:
             button.draw(screen)
+
+        self.lablels[0].set_value(str(self.context.game_stopwatch))
+        self.lablels[1].set_value(self.context.game_board.moves)
+
         for label in self.lablels:
-            label.set_value(utils.format_time(pygame.time.get_ticks()))
             label.draw(screen)
 
     def check_click(self, event: pygame.event.Event) -> None:

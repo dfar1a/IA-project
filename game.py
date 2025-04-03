@@ -4,6 +4,8 @@ import view as v
 import controller as control
 from solver import AsyncBFSSolver, execute_next_move, get_next_move
 import utils
+from stopwatch import Stopwatch
+from pause_menu import PauseMenu
 
 # Increased window size for better spacing and proper alignment
 WIDTH = 1400
@@ -11,11 +13,13 @@ HEIGHT = 1000
 
 
 class SolitaireGame:
-    def __init__(self, use_ai=True):
+    def __init__(self, use_ai=False):
         # Game state variables
         self.use_ai = use_ai
         self.running = True
+        self.return_to_menu = False
         self.ai_paused = False
+        self.game_paused = False
 
         # Card interaction variables
         self.selected_card = None
@@ -28,6 +32,8 @@ class SolitaireGame:
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.clock = pygame.time.Clock()
+        self.game_stopwatch = Stopwatch()
+        self.game_stopwatch.start()
 
         # Game components
         self.game_board = control.BoardController()
@@ -38,24 +44,76 @@ class SolitaireGame:
         self.solver.start()
         self.board_state = hash(self.game_board.model)
 
+        # Create pause menu
+        self.pause_menu = PauseMenu((WIDTH, HEIGHT))
+        self.pause_menu.set_callbacks(
+            resume_cb=self.pause_play,  # Resume game
+            new_game_cb=self.new_game,  # Reset game
+            main_menu_cb=self.return_to_main_menu,  # Go back to main menu
+            exit_cb=self.exit_game,  # Exit game
+        )
+
     def toggle_ai(self):
         self.use_ai = not self.use_ai
+
+    def pause_play(self):
+        """Toggle game pause state"""
+        if self.pause_menu.active:
+            self.pause_menu.hide()
+            self.game_stopwatch.start()
+        else:
+            self.pause_menu.show()
+            self.game_stopwatch.stop()
+
+        self.game_paused = self.pause_menu.active
+
+    def new_game(self):
+        """Reset the game to a new state"""
+        self.game_board = control.BoardController()
+        self.game_stopwatch.reset()
+        self.game_stopwatch.start()
+        self.solver.stop()
+        self.solver = AsyncBFSSolver(self.game_board)
+        self.solver.start()
+        self.board_state = hash(self.game_board.model)
+        self.game_paused = False
+        self.pause_menu.hide()
+
+    def exit_game(self):
+        """Close the game"""
+        self.running = False
+
+    def return_to_main_menu(self):
+        """Return to the main menu"""
+        self.running = False
+        self.return_to_menu = True  # Flag to indicate we want to return to menu
+
+        # Clean up resources
+        self.solver.stop()
+        self.solver.save_data()
 
     def handle_events(self):
         """Handle pygame events and user interactions"""
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
         for event in pygame.event.get():
+            # Check pause menu events first
+            if self.pause_menu.handle_event(event):
+                continue
+
             self.game_bar.check_click(event)
+
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.pause_play()
+            elif event.type == pygame.MOUSEBUTTONDOWN and not self.game_paused:
                 self.handle_mouse_down(event)
-            elif event.type == pygame.MOUSEBUTTONUP:
-                self.handle_mouse_up(event)
+            elif event.type == pygame.MOUSEBUTTONUP and not self.game_paused:
+                self.handle_mouse_up()
 
-        # Update dragging card position if needed
-        if self.dragging and self.selected_card:
+        # Update dragging card position if needed and not paused
+        if self.dragging and self.selected_card and not self.game_paused:
             self.selected_card.view.dest = self.selected_card.view.pos = (
                 mouse_x - self.drag_offset_x,
                 mouse_y - self.drag_offset_y,
@@ -63,6 +121,8 @@ class SolitaireGame:
 
     def handle_mouse_down(self, event):
         """Handle mouse button down events"""
+        if self.game_paused:
+            return
         card, column = self.game_board.get_clicked_card(event.pos[0], event.pos[1])
 
         if card:
@@ -77,7 +137,7 @@ class SolitaireGame:
             )
             self.ai_paused = True  # Pause the AI when dragging starts
 
-    def handle_mouse_up(self, event):
+    def handle_mouse_up(self):
         """Handle mouse button up events"""
 
         self.game_board.selectedCard = None
@@ -85,9 +145,7 @@ class SolitaireGame:
         if not self.selected_card:
             return
 
-        valid_move = self.try_move_to_column(
-            self.selected_card
-        ) or self.try_move_to_foundation(self.selected_card)
+        valid_move = self.try_move_to_column() or self.try_move_to_foundation()
 
         # If move is invalid, return card to original column
         if not valid_move:
@@ -110,7 +168,7 @@ class SolitaireGame:
         self.dragging = False
         self.ai_paused = False  # Resume the AI when dragging stops
 
-    def try_move_to_column(self, card):
+    def try_move_to_column(self):
         """Try to move the selected card to a column"""
         for col in self.game_board.columns:
             if utils.collide(
@@ -123,7 +181,7 @@ class SolitaireGame:
                     return True
         return False
 
-    def try_move_to_foundation(self, card):
+    def try_move_to_foundation(self):
         """Try to move the selected card to a foundation"""
         for foundation in self.game_board.foundations:
             if utils.collide(
@@ -159,7 +217,7 @@ class SolitaireGame:
             self.solver.start()
             self.board_state = hash(self.game_board.model)
 
-        if self.ai_paused or not self.use_ai:
+        if self.ai_paused or not self.use_ai or self.game_paused:
             return
 
         # Check if it's time to make an AI move
@@ -170,30 +228,70 @@ class SolitaireGame:
                 execute_next_move(state, self.game_board)
                 self.board_state = hash(self.game_board.model)
 
+    def cleanup(self):
+        """Clean up all game resources"""
+        if hasattr(self, "solver") and self.solver:
+            self.solver.stop()
+            self.solver.save_data()
+
     def run(self):
         """Main game loop"""
-        while self.running:
-            # Handle events first (user input)
-            self.handle_events()
+        try:
+            while self.running:
+                # Handle events first (user input)
+                self.handle_events()
 
-            # Update game board (handles animations)
-            self.game_board.update(self.screen)
-            self.game_bar.draw(self.screen)
+                # Update game board (handles animations)
+                self.game_board.update(self.screen)
+                self.game_bar.draw(self.screen)
 
-            # Update AI after game board update (so animations have started)
-            self.update_ai()
+                # Update AI after game board update (so animations have started)
+                self.update_ai()
 
-            # Final display refresh
-            pygame.display.update()
-            self.clock.tick(60)
-        self.solver.stop()
-        self.solver.save_data()
-        pygame.quit()
+                # Draw pause menu on top if active
+                self.pause_menu.draw(self.screen)
+
+                # Final display refresh
+                pygame.display.update()
+                self.clock.tick(60)
+        finally:
+            # Always clean up resources, even if there's an error
+            self.cleanup()
 
 
-def main(use_ai=False):
-    game = SolitaireGame(use_ai)
-    game.run()
+def main():
+    """Main game entry point"""
+    # Initialize pygame if it's not already initialized
+    if not pygame.get_init():
+        pygame.init()
+
+    keep_running = True
+    while keep_running:
+        # Create and run game
+        game = SolitaireGame()
+        game.run()
+
+        # Check if we should return to the main menu
+        if game.return_to_menu:
+            # Import here to avoid circular imports
+            import menu
+
+            # Call menu and get its return action
+            action = menu.menu()
+
+            # Process the menu's return action
+            if action == "START_GAME":
+                # We'll start a new game in the next loop iteration
+                continue
+            elif action == "QUIT":
+                # Exit the game loop
+                keep_running = False
+        else:
+            # Normal exit (not returning to menu)
+            keep_running = False
+
+    # Final cleanup
+    pygame.quit()
 
 
 if __name__ == "__main__":

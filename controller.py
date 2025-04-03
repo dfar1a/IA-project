@@ -118,6 +118,8 @@ class BoardController:
         foundation_x = start_x + column_width * 7 + 50  # More space from columns
         foundation_y = start_y
 
+        self.moves = 0
+
         # Shffle all cards except the kings
 
         deck = create_deck()
@@ -177,6 +179,7 @@ class BoardController:
 
         # Check if the move is valid
         if to_column.insert(card):
+            self.moves += 1
             from_column.pop()  # Remove only if move is valid
             return True
 
@@ -194,6 +197,7 @@ class BoardController:
         print(f"[DEBUG] Attempting to move {card} to foundation...")  # ADD THIS PRINT
 
         if foundation.insert(card):
+            self.moves += 1
             print(
                 f"[DEBUG] Move successful: {card} placed on foundation."
             )  # ADD THIS PRINT

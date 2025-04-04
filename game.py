@@ -2,7 +2,7 @@ import pygame
 import cards as c
 import view as v
 import controller as control
-from solver import AsyncBFSSolver, execute_next_move, get_next_move
+from solver import AsyncSolver, execute_next_move, get_next_move
 import utils
 from stopwatch import Stopwatch
 from pause_menu import PauseMenu
@@ -40,7 +40,7 @@ class SolitaireGame:
         self.game_bar = v.GameBar(self)
 
         # AI solver
-        self.solver = AsyncBFSSolver(self.game_board)
+        self.solver = AsyncSolver(self.game_board)
         self.solver.start()
         self.board_state = hash(self.game_board.model)
 
@@ -73,7 +73,7 @@ class SolitaireGame:
         self.game_stopwatch.reset()
         self.game_stopwatch.start()
         self.solver.stop()
-        self.solver = AsyncBFSSolver(self.game_board)
+        self.solver = AsyncSolver(self.game_board)
         self.solver.start()
         self.board_state = hash(self.game_board.model)
         self.game_paused = False
@@ -213,7 +213,7 @@ class SolitaireGame:
             # Board state changed by user, restart solver
             self.game_bar.ai_ready(False)
             self.solver.stop()
-            self.solver = AsyncBFSSolver(self.game_board)
+            self.solver = AsyncSolver(self.game_board)
             self.solver.start()
             self.board_state = hash(self.game_board.model)
 

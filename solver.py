@@ -12,7 +12,7 @@ import signal
 
 class TreeNode:
     def evaluate(self, state: b.Board) -> float:
-        cost = AsyncBFSSolver.learn.get(hash(state))
+        cost = AsyncSolver.learn.get(hash(state))
         if cost != None:
             return -(10**3) // (cost + 1)
 
@@ -29,12 +29,7 @@ class TreeNode:
         for column in state.columns:
             cards = column.cards
 
-            # for i in range(len(cards) - 1):
-            #     score += 0.2 * (cards[i + 1].cardSuite != cards[i].cardSuite)
-
             for i, card in enumerate(cards):
-                # if card in nextCards:
-                #     score += len(cards) - i - 1
                 nextCard = nextCards.get(card.cardSuite.value)
                 if nextCard is None:
                     nextCard = nextCards.get(c.CardSuite.any)
@@ -111,43 +106,53 @@ def load_data_pickle(filename):
         return dict()
 
 
-class AsyncBFSSolver:
+class AsyncSolver:
+    """Base class for asynchronous solvers with shared functionality"""
+
     learn = load_data_pickle("learn.data")
     _stop = False
 
-    def __init__(self, game_board):
+    def __init__(self, game_board, solver_type="bfs"):
         self.initstate = game_board.model
         self.solution = None
         self.process = None
         self.running = False
         self.result_queue = multiprocessing.Queue()
+        self.solver_type = solver_type.lower()  # 'bfs' or 'idastar'
 
     def stop(self):
-        AsyncBFSSolver._stop = True
+        AsyncSolver._stop = True
         if self.process and self.process.is_alive():
             self.process.terminate()
 
     def save_data(self):
         save_data_pickle("learn.data", self.learn)
 
-    def _run_bfs_process(self, initstate, result_queue):
-        """Execute BFS in a separate process and put result in queue"""
-        AsyncBFSSolver._stop = False
-        print("AI process running")
+    def _run_solver_process(self, initstate, result_queue):
+        """Execute selected solver in a separate process and put result in queue"""
+        AsyncSolver._stop = False
+        print(f"AI process running using {self.solver_type.upper()} solver")
         v = TreeNode(initstate)
-        bfsSolver = importlib.import_module("bfsSolver")
-        signal.signal(signal.SIGTERM, bfsSolver.kill_all)
-        solution = bfsSolver.bfs(v)
+
+        solution = None
+        if self.solver_type == "bfs":
+            bfsSolver = importlib.import_module("bfsSolver")
+            signal.signal(signal.SIGTERM, bfsSolver.kill_all)
+            solution = bfsSolver.bfs(v)
+        elif self.solver_type == "idastar":
+            idastar = importlib.import_module("idaStarSolver")
+            ida = idastar.IDAStar(initstate)
+            solution = ida.runIDAS()
 
         if solution:
-            print("Process found solution")
+            print(f"{self.solver_type.upper()} solver found solution")
             # Process the solution to create next moves
             depth = 0
             v = solution
             while v.parent is not None:
-                data = AsyncBFSSolver.learn.get(hash(v.state))
+                data = AsyncSolver.learn.get(hash(v.state))
                 if data is None or depth < data:
-                    AsyncBFSSolver.learn[hash(v.state)] = depth
+                    AsyncSolver.learn[hash(v.state)] = depth
                 depth += 1
                 parent = v.parent
                 parent.next = (v, parent.children[v])
@@ -158,13 +163,13 @@ class AsyncBFSSolver:
         else:
             result_queue.put(None)
 
-    def run_bfs(self):
-        """Start the BFS in a separate process"""
-        AsyncBFSSolver._stop = False
+    def run_solver(self):
+        """Start the solver in a separate process"""
+        AsyncSolver._stop = False
         self.running = True
         # Create a non-daemon process
         self.process = multiprocessing.Process(
-            target=self._run_bfs_process, args=(self.initstate, self.result_queue)
+            target=self._run_solver_process, args=(self.initstate, self.result_queue)
         )
         self.process.daemon = False  # Set to False to allow child processes
         self.process.start()
@@ -173,7 +178,7 @@ class AsyncBFSSolver:
         threading.Thread(target=self._monitor_process, daemon=True).start()
 
     def _monitor_process(self):
-        """Monitor the BFS process and get result when ready"""
+        """Monitor the solver process and get result when ready"""
         try:
             result = self.result_queue.get(timeout=120)  # 2 minute timeout
             if result:
@@ -184,11 +189,11 @@ class AsyncBFSSolver:
             self.running = False
 
     def start(self):
-        """Start the BFS process"""
-        self.run_bfs()
+        """Start the solver process"""
+        self.run_solver()
 
     def is_running(self):
-        """Check if BFS is still running"""
+        """Check if solver is still running"""
         if self.process:
             return self.process.is_alive() and self.running
         return self.running
@@ -211,6 +216,13 @@ class AsyncBFSSolver:
                 self.solution = None
             return solution
         return None
+
+    def set_solver_type(self, solver_type):
+        """Change solver type - must be called before start()"""
+        if not self.is_running():
+            self.solver_type = solver_type.lower()
+            return True
+        return False
 
 
 class MoveType:
@@ -252,9 +264,9 @@ def run_ai(game_board):
         v = solution
         depth = 0
         while v.parent != None:
-            data = AsyncBFSSolver.learn.get(hash(v.state))
+            data = AsyncSolver.learn.get(hash(v.state))
             if data == None or depth < data:
-                AsyncBFSSolver.learn[hash(v.state)] = depth
+                AsyncSolver.learn[hash(v.state)] = depth
             depth += 1
             parent = v.parent
             parent.next = (v, parent.children[v])

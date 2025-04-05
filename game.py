@@ -245,7 +245,7 @@ class SolitaireGame:
         font = pygame.font.Font(None, 80)
         small_font = pygame.font.Font(None, 40)
 
-        message = font.render("🎉 You Won! 🎉", True, (255, 255, 0))
+        message = font.render("You Won!", True, (255, 255, 0))
         message_rect = message.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 180))
 
         # Input setup

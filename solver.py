@@ -143,7 +143,26 @@ class AsyncSolver:
             idastar = importlib.import_module("idaStarSolver")
             ida = idastar.IDAStar(initstate)
             solution = ida.runIDAS()
+        elif self.solver_type == "dfs":
+            dfsSolver = importlib.import_module("dfsSolver")
+            game = Game()
+            game.board = initstate.copy()
+            solution_moves = dfs_solver(game)
 
+            if solution_moves:
+                # Reconstrói a árvore a partir da lista de movimentos
+                for move in solution_moves:
+                    (i, j), card = move
+                    next_state = move_col_col(initstate, i, j)
+                    if next_state is None:
+                        next_state = move_col_foundation(initstate, i, j)
+                    if next_state is None:
+                        continue
+                    child = TreeNode(next_state)
+                    v.add_child(child, ("column", i, j))  # ou foundation se for o caso
+                    v.next = (child, ("column", i, j))
+                    v = child
+                solution = v
         if solution:
             print(f"{self.solver_type.upper()} solver found solution")
             # Process the solution to create next moves

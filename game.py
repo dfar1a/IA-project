@@ -13,13 +13,14 @@ HEIGHT = 1000
 
 
 class SolitaireGame:
-    def __init__(self, use_ai=False):
+    def __init__(self, use_ai=False, board_mode="big"):
         # Game state variables
         self.use_ai = use_ai
         self.running = True
         self.return_to_menu = False
         self.ai_paused = False
         self.game_paused = False
+        self.board_mode = board_mode
 
         # Card interaction variables
         self.selected_card = None
@@ -36,7 +37,7 @@ class SolitaireGame:
         self.game_stopwatch.start()
 
         # Game components
-        self.game_board = control.BoardController()
+        self.game_board = control.BoardController(board_mode=self.board_mode)
         self.game_bar = v.GameBar(self)
 
         # AI solver
@@ -69,7 +70,7 @@ class SolitaireGame:
 
     def new_game(self):
         """Reset the game to a new state"""
-        self.game_board = control.BoardController()
+        self.game_board = control.BoardController(board_mode=self.board_mode)
         self.game_stopwatch.reset()
         self.game_stopwatch.start()
         self.solver.stop()
@@ -350,7 +351,7 @@ class SolitaireGame:
             self.cleanup()
 
 
-def main():
+def main(board_mode="big"):
     """Main game entry point"""
     # Initialize pygame if it's not already initialized
     if not pygame.get_init():
@@ -359,7 +360,7 @@ def main():
     keep_running = True
     while keep_running:
         # Create and run game
-        game = SolitaireGame()
+        game = SolitaireGame(board_mode=board_mode)
         game.run()
 
         # Check if we should return to the main menu

@@ -100,9 +100,10 @@ class Foundation:
 
 
 class Board:
-    def __init__(self, columns: tuple[CardColumn], foundations: tuple[Foundation]):
+    def __init__(self, columns: tuple[CardColumn], foundations: tuple[Foundation],mode="big"):
         self.columns = tuple(columns)
         self.foundations = tuple(foundations)
+        self.mode = mode
 
     def copy(self):
         columns = [column.copy() for column in self.columns]
@@ -129,8 +130,16 @@ class Board:
         return foundation.can_insert(col.top())
 
     def is_game_won(self) -> bool:
-        """Check if all foundations have a King on top."""
-        return all(f.is_full() for f in self.foundations) if self.foundations else False
+        if not self.foundations:
+            return False
+
+        if self.mode == "small":
+            return all(
+                f.top() and f.top().cardValue.value == 4
+                for f in self.foundations
+            )
+        else:
+            return all(f.is_full() for f in self.foundations)
 
     def __hash__(self):
         colHash = [hash(col) for col in self.columns]

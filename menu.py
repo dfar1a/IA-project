@@ -104,8 +104,8 @@ class MenuButton(utils.Button):
 def select_board_mode(screen):
     """New screen after clicking 'Jogar' with board mode options."""
     font = pygame.font.Font(None, 60)
-    small_btn = MenuButton("Mini Board (4 cartas)", (WIDTH // 2 - 150, 300), lambda: "small")
-    big_btn = MenuButton("Big Board (52 cartas)", (WIDTH // 2 - 150, 400), lambda: "big")
+    small_btn = MenuButton("Mini Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), lambda: "small")
+    big_btn = MenuButton("Normal Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), lambda: "big")
     buttons = [small_btn, big_btn]
 
     selecting = True

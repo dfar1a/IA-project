@@ -72,8 +72,7 @@ class FoundationController:
         return False
 
 
-
-def create_deck() -> list[CardController]:
+def create_deck() -> tuple[list[CardController], bytes]:
     deck = [
         CardController(c.CardValue(i // 4 + 1), c.CardSuite(i % 4)) for i in range(48)
     ]
@@ -95,6 +94,8 @@ def create_deck() -> list[CardController]:
         shuffled_deck[p] = kings[i]
         i += 1
 
+    seed = r.randbytes(8)
+    r.seed(seed)
     r.shuffle(deck)
 
     i = 0
@@ -104,7 +105,7 @@ def create_deck() -> list[CardController]:
             shuffled_deck[j] = deck[i]
             i += 1
 
-    return shuffled_deck
+    return shuffled_deck, seed
 
 
 class BoardController:
@@ -122,7 +123,7 @@ class BoardController:
 
         # Shffle all cards except the kings
 
-        deck = create_deck()
+        deck, self.seed = create_deck()
 
         self.columns = [
             ColumnController(
@@ -153,6 +154,9 @@ class BoardController:
         self.view.draw(screen)
         if self.selectedCard is not None:
             self.selectedCard.view.draw(screen)
+
+    def get_seed(self) -> bytes:
+        return self.seed
 
     def get_clicked_card(self, mouse_x, mouse_y) -> CardController:
         """Detects which column was clicked and returns the top card."""
@@ -210,10 +214,11 @@ class BoardController:
 
         print(f"[DEBUG] Move failed: {card} cannot go to foundation.")
         return False
-    
+
     def is_game_won_visual(self) -> bool:
         """Only return True if all foundations show a King on top (visually)."""
         from cards import CardValue
+
         for foundation in self.foundations:
             if not foundation.cards:
                 return False
@@ -221,4 +226,3 @@ class BoardController:
             if top_card.cardValue.value != CardValue.king:
                 return False
         return True
-

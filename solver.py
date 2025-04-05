@@ -1,6 +1,5 @@
 import pickle
 import threading
-import board as b
 import cards as c
 from controller import BoardController
 from heapq import *
@@ -8,6 +7,12 @@ import random
 import importlib
 import multiprocessing
 import signal
+import time
+import psutil
+
+from typing import TYPE_CHECKING
+
+import board as b
 
 
 class TreeNode:
@@ -114,16 +119,40 @@ class AsyncSolver:
 
     def __init__(self, game_board, solver_type="bfs"):
         self.initstate = game_board.model
-        self.solution = None
+        self.solutionPath = None
         self.process = None
         self.running = False
         self.result_queue = multiprocessing.Queue()
         self.solver_type = solver_type.lower()  # 'bfs' or 'idastar'
+        self.start_time = 0
+        self.stop_time = 0
+        self.maxMemUsed = 0
+        self.sumMemUsed = 0
+        self.measuresMemUsed = 0
+        self.states_processed = 0
+
+    def get_moves(self):
+        count = 0
+        while self.extract_solution() is not None:
+            count += 1
+        return count
 
     def stop(self):
         AsyncSolver._stop = True
         if self.process and self.process.is_alive():
             self.process.terminate()
+
+    def get_states_processed(self):
+        return self.states_processed
+
+    def get_max_mem_used(self):
+        return self.maxMemUsed
+
+    def get_avg_mem_used(self):
+        return self.sumMemUsed / self.measuresMemUsed if self.measuresMemUsed else 0
+
+    def get_time_elapsed(self):
+        return self.stop_time - self.start_time
 
     def save_data(self):
         save_data_pickle("learn.data", self.learn)
@@ -135,33 +164,41 @@ class AsyncSolver:
         v = TreeNode(initstate)
 
         solution = None
+        self.start_time = time.time_ns()
         if self.solver_type == "bfs":
             bfsSolver = importlib.import_module("bfsSolver")
             signal.signal(signal.SIGTERM, bfsSolver.kill_all)
-            solution = bfsSolver.bfs(v)
+            solution, self.states_processed = bfsSolver.bfs(v)
         elif self.solver_type == "idastar":
             idastar = importlib.import_module("idaStarSolver")
             ida = idastar.IDAStar(initstate)
             solution = ida.runIDAS()
+        elif self.solver_type == "bfs-single_core":
+            bfsSolver = importlib.import_module("bfsSolver")
+            solution, self.states_processed = bfsSolver.bfs_single_core(v)
+        self.stop_time = time.time_ns()
 
-        if solution:
-            print(f"{self.solver_type.upper()} solver found solution")
-            # Process the solution to create next moves
-            depth = 0
-            v = solution
-            while v.parent is not None:
-                data = AsyncSolver.learn.get(hash(v.state))
-                if data is None or depth < data:
-                    AsyncSolver.learn[hash(v.state)] = depth
-                depth += 1
-                parent = v.parent
-                parent.next = (v, parent.children[v])
-                v = parent
+        # if solution:
+        #     print(f"{self.solver_type.upper()} solver found solution")
+        #     # Process the solution to create next moves
+        #     depth = 0
+        #     v = solution
+        #     while v.parent is not None:
+        #         data = AsyncSolver.learn.get(hash(v.state))
+        #         if data is None or depth < data:
+        #             AsyncSolver.learn[hash(v.state)] = depth
+        #         depth += 1
+        #         parent = v.parent
+        #         parent.next = (v, parent.children[v])
+        #         v = parent
 
-            # Put the initial solution node in queue
-            result_queue.put(pickle.dumps(v))
-        else:
-            result_queue.put(None)
+        # Put the initial solution node in queue along with timing information
+
+        result_queue.put(
+            pickle.dumps(
+                (solution, self.start_time, self.stop_time, self.states_processed)
+            )
+        )
 
     def run_solver(self):
         """Start the solver in a separate process"""
@@ -176,15 +213,39 @@ class AsyncSolver:
 
         # Poll for results in a separate thread
         threading.Thread(target=self._monitor_process, daemon=True).start()
+        # Poll memmory usage
+        threading.Thread(
+            target=self.measure_memory_consumption,
+            daemon=True,
+            args=(self.process.pid,),
+        ).start()
+
+    def measure_memory_consumption(self, pid: int):
+        while self.process.is_alive():
+            process = psutil.Process(pid)
+            mem = process.memory_info().rss
+            self.maxMemUsed = max(mem, self.maxMemUsed)
+            self.sumMemUsed += mem
+            self.measuresMemUsed += 1
+            time.sleep(1)
 
     def _monitor_process(self):
         """Monitor the solver process and get result when ready"""
         try:
-            result = self.result_queue.get(timeout=120)  # 2 minute timeout
+            result = self.result_queue.get()
             if result:
-                self.solution = pickle.loads(result)
+                unpacked_result = pickle.loads(result)
+                if isinstance(unpacked_result, tuple) and len(unpacked_result) == 4:
+                    (
+                        self.solutionPath,
+                        self.start_time,
+                        self.stop_time,
+                        self.states_processed,
+                    ) = unpacked_result
+                else:
+                    self.solutionPath = unpacked_result  # Backward compatibility
         except:
-            self.solution = None
+            self.solutionPath = None
         finally:
             self.running = False
 
@@ -194,26 +255,21 @@ class AsyncSolver:
 
     def is_running(self):
         """Check if solver is still running"""
-        if self.process:
-            return self.process.is_alive() and self.running
         return self.running
 
     def has_solution(self) -> bool:
-        return not self.is_running() and self.solution is not None
+        return not self.is_running() and self.solutionPath is not None
 
     def get_solution(self) -> TreeNode:
         if not self.is_running():
-            return self.solution
+            return self.solutionPath
         return None
 
     def extract_solution(self) -> TreeNode:
         """Return solution if found"""
-        if not self.is_running():
-            solution = self.solution
-            if solution is not None and solution.next is not None:
-                self.solution = solution.next[0]
-            else:
-                self.solution = None
+        if not self.is_running() and self.solutionPath is not None:
+            solution = self.solutionPath[0]
+            self.solutionPath.pop(0)
             return solution
         return None
 

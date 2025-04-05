@@ -1,9 +1,7 @@
 from typing import Optional
 import cards as c
-import board as b
 import pygame
 import utils
-import game
 import time
 import math
 

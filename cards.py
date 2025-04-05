@@ -1,5 +1,3 @@
-import pygame
-
 card_resources = "resources/cards/"
 image_extension = ".png"
 

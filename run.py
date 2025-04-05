@@ -109,7 +109,11 @@ def run_menu():
         if os.name != "nt"
         else os.path.join(VENV_DIR, "Scripts", "python")
     )
-    subprocess.run([python_bin, "menu.py"], check=True)
+    if len(sys.argv) == 2:
+        program = sys.argv[1] + ".py"
+    else:
+        program = "menu.py"
+    subprocess.run([python_bin, program], check=True)
 
 
 if __name__ == "__main__":

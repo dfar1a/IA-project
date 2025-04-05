@@ -58,27 +58,17 @@ def kill_all(*args):
         os._exit(1)
 
 
-def get_path(start_node, end_node):
-    path = []
-    current = end_node
-    # Trace backward from end_node to start_node
-    while current != start_node:
-        path.append(current)
-        current = current.parent
-    # Add start_node and reverse path
-    path.append(start_node)
-    return list(reversed(path))  # Return in start->end order
+visited_states = set()
 
 
 # Core BFS algorithm - shared between all implementations
 def bfs_core(
     start_node,
-    visited_states=None,
     max_states=10**5,
     stop_check_fn=None,
     on_solution_fn=None,
     process_id=0,
-    max_moves_per_state=8,
+    visit_nodes=-1,
 ):
     """[:max_moves_per_state]led with solution node if found
         process_id: ID for logging
@@ -88,10 +78,8 @@ def bfs_core(
         Solution node if found and on_solution_fn is None, otherwise None
     """
     # Initialize defaults
-    if visited_states is None:
-        visited_states = {hash(start_node.state)}
-    else:
-        visited_states.add(hash(start_node.state))
+    global visited_states
+    visited_states.add(hash(start_node.state))
 
     if stop_check_fn is None:
         stop_check_fn = lambda: False  # Never stop by default
@@ -115,13 +103,12 @@ def bfs_core(
             if current_board.state.is_game_won():
                 print(f"BFS Core {process_id} found solution!")
                 if on_solution_fn:
-                    on_solution_fn(get_path(start_node, current_board))
+                    on_solution_fn(current_board)
                     return None, states_processed  # Solution handled by callback
                 else:
-                    return (
-                        get_path(start_node, current_board),
-                        states_processed,
-                    )  # Return solution directly
+                    return current_board, states_processed  # Return solution directly
+            elif visit_nodes != -1 and len(queue) >= visit_nodes:
+                return queue
 
             # Get and explore possible moves
             moves = solver.get_possible_moves(current_board.state)
@@ -143,19 +130,11 @@ def bfs_core(
                 visited_states.add(state_hash)
 
                 # Create new node and link to parent
-                node = solver.TreeNode(state)
-                node.parent = current_board
+                node = solver.TreeNode(state, current_board)
                 current_board.add_child(node, move)
 
                 # Add to queue
                 heappush(queue, node)
-
-            # if len(queue) > max(2000, states_processed / 7):
-            #     queue = queue[: int(len(queue) * 5 / 7)]
-            #     # while len(queue) > 1000:
-            #     #     del queue[-1]
-            #     #     queue.pop()
-            #     # gc.collect()
 
             # Update counters and periodically check stopping condition
             states_processed += 1
@@ -180,25 +159,12 @@ def expand_initial_nodes(
     root: solver.TreeNode, num_nodes: int
 ) -> list[solver.TreeNode]:
     """Expand the root node to create starting points for different processes"""
-    initial_nodes = []
-    visited = set()
-
-    # Use the core BFS algorithm with a custom on_solution callback
-    def collect_node(node):
-        initial_nodes.append(node)
-
-    # Custom stop check - stop when we have enough nodes
-    def enough_nodes():
-        return len(initial_nodes) >= num_nodes
 
     # Run core BFS to expand enough nodes
-    bfs_core(
+    initial_nodes = bfs_core(
         root,
-        visited_states=visited,
         max_states=num_nodes * 10,  # Higher limit to find enough nodes
-        stop_check_fn=enough_nodes,
-        on_solution_fn=collect_node,
-        max_moves_per_state=5,  # Fewer moves per state for wider exploration
+        visit_nodes=num_nodes,
     )
 
     # If we couldn't expand enough, just use what we have
@@ -239,20 +205,6 @@ def bfs_process_worker(start_node, process_id, solution_queue, stop_event):
     )
 
 
-def bfs(root: solver.TreeNode) -> solver.TreeNode | None:
-    """Main entry point - chooses between distributed and single-core based on context"""
-    # Check if we're already in a child process
-    in_child_process = multiprocessing.current_process().name != "MainProcess"
-
-    # Use the appropriate implementation
-    if in_child_process:
-        # Already in a child process, use single-core
-        return bfs_single_core(root)
-    else:
-        # In main process, use distributed
-        return bfs_distributed(root)
-
-
 def bfs_distributed(root: solver.TreeNode) -> solver.TreeNode | None:
     """BFS implementation that distributes different starting nodes across processes"""
     print("Using distributed BFS with multiprocessing")
@@ -262,7 +214,7 @@ def bfs_distributed(root: solver.TreeNode) -> solver.TreeNode | None:
     terminate_all_processes()
 
     # Determine number of processes
-    num_processes = max(1, multiprocessing.cpu_count() - 1)
+    num_processes = max(1, (multiprocessing.cpu_count() - 1) // 2)
 
     # Create initial nodes for distribution
     initial_nodes = expand_initial_nodes(root, num_processes)

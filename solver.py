@@ -50,21 +50,15 @@ class TreeNode:
 
         score += 13 * 4 - sumLen
 
-        return score + random.random() + self.actualCost
+        return score + random.random()  # + self.actualCost
 
     def __init__(self, state: b.Board, parent=None):
         self.state = state
         self.parent = parent
         self.children = dict()
         self.next = None
-        self.actualCost = self.setActualCost()
+        self.actualCost = self.parent.actualCost + 1 if self.parent is not None else 0
         self.score = self.evaluate(state)
-
-    def setActualCost(self) -> float:
-        if self.parent is not None:
-            return self.parent.actualCost + 1
-        else:
-            return 0
 
     def add_child(self, child_node: "TreeNode", transition: tuple[str, int, int]):
         self.children[child_node] = transition
@@ -119,7 +113,7 @@ class AsyncSolver:
 
     def __init__(self, game_board, solver_type="bfs"):
         self.initstate = game_board.model
-        self.solutionPath = None
+        self.solution = None
         self.process = None
         self.running = False
         self.result_queue = multiprocessing.Queue()
@@ -168,7 +162,7 @@ class AsyncSolver:
         if self.solver_type == "bfs":
             bfsSolver = importlib.import_module("bfsSolver")
             signal.signal(signal.SIGTERM, bfsSolver.kill_all)
-            solution, self.states_processed = bfsSolver.bfs(v)
+            solution = bfsSolver.bfs_distributed(v)
         elif self.solver_type == "idastar":
             idastar = importlib.import_module("idaStarSolver")
             ida = idastar.IDAStar(initstate)
@@ -178,26 +172,25 @@ class AsyncSolver:
             solution, self.states_processed = bfsSolver.bfs_single_core(v)
         self.stop_time = time.time_ns()
 
-        # if solution:
-        #     print(f"{self.solver_type.upper()} solver found solution")
-        #     # Process the solution to create next moves
-        #     depth = 0
-        #     v = solution
-        #     while v.parent is not None:
-        #         data = AsyncSolver.learn.get(hash(v.state))
-        #         if data is None or depth < data:
-        #             AsyncSolver.learn[hash(v.state)] = depth
-        #         depth += 1
-        #         parent = v.parent
-        #         parent.next = (v, parent.children[v])
-        #         v = parent
+        v = solution
+        if solution:
+            print(f"{self.solver_type.upper()} solver found solution")
+            # Process the solution to create next moves
+            depth = 0
+            v = solution
+            while v.parent is not None:
+                data = AsyncSolver.learn.get(hash(v.state))
+                if data is None or depth < data:
+                    AsyncSolver.learn[hash(v.state)] = depth
+                depth += 1
+                parent = v.parent
+                parent.next = (v, parent.children[v])
+                v = parent
 
-        # Put the initial solution node in queue along with timing information
+            # Put the initial solution node in queue along with timing information
 
         result_queue.put(
-            pickle.dumps(
-                (solution, self.start_time, self.stop_time, self.states_processed)
-            )
+            pickle.dumps((v, self.start_time, self.stop_time, self.states_processed))
         )
 
     def run_solver(self):
@@ -237,15 +230,13 @@ class AsyncSolver:
                 unpacked_result = pickle.loads(result)
                 if isinstance(unpacked_result, tuple) and len(unpacked_result) == 4:
                     (
-                        self.solutionPath,
+                        self.solution,
                         self.start_time,
                         self.stop_time,
                         self.states_processed,
                     ) = unpacked_result
-                else:
-                    self.solutionPath = unpacked_result  # Backward compatibility
         except:
-            self.solutionPath = None
+            self.solution = None
         finally:
             self.running = False
 
@@ -258,18 +249,21 @@ class AsyncSolver:
         return self.running
 
     def has_solution(self) -> bool:
-        return not self.is_running() and self.solutionPath is not None
+        return not self.is_running() and self.solution is not None
 
     def get_solution(self) -> TreeNode:
         if not self.is_running():
-            return self.solutionPath
+            return self.solution
         return None
 
     def extract_solution(self) -> TreeNode:
         """Return solution if found"""
-        if not self.is_running() and self.solutionPath is not None:
-            solution = self.solutionPath[0]
-            self.solutionPath.pop(0)
+        if not self.is_running():
+            solution = self.solution
+            if solution is not None and solution.next is not None:
+                self.solution = solution.next[0]
+            else:
+                self.solution = None
             return solution
         return None
 

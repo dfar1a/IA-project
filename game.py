@@ -15,6 +15,7 @@ HEIGHT = 1000
 class SolitaireGame:
     def __init__(self, use_ai=False, board_mode="big"):
         # Game state variables
+        #print(f"[DEBUG] SolitaireGame starting with board_mode: {board_mode}")
         self.use_ai = use_ai
         self.running = True
         self.return_to_menu = False
@@ -357,10 +358,12 @@ def main(board_mode="big"):
     if not pygame.get_init():
         pygame.init()
 
+    current_mode = board_mode
+
     keep_running = True
     while keep_running:
         # Create and run game
-        game = SolitaireGame(board_mode=board_mode)
+        game = SolitaireGame(board_mode=current_mode)
         game.run()
 
         # Check if we should return to the main menu
@@ -372,8 +375,9 @@ def main(board_mode="big"):
             action = menu.menu()
 
             # Process the menu's return action
-            if action == "START_GAME":
+            if action and action.startswith("START_GAME_"):
                 # We'll start a new game in the next loop iteration
+                current_mode = action.split("_")[-1]
                 continue
             elif action == "QUIT":
                 # Exit the game loop

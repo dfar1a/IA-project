@@ -2,8 +2,7 @@ import pygame
 import cv2
 import sys
 import game as g
-import bfsSolver as bfs_solver
-import controller as control  # Import the game controller
+import controller as control
 import utils
 
 WIDTH, HEIGHT = 1280, 720
@@ -15,17 +14,16 @@ WHITE = (255, 255, 255)
 
 
 def get_video_frame(cap):
-    pygame.time.wait(50)  # Increase value for slower motion (e.g., 100 for even slower)
+    pygame.time.wait(50)
     ret, frame = cap.read()
     if not ret:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Restart video if it ends
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         ret, frame = cap.read()
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert color format
-    frame = cv2.resize(frame, (WIDTH, HEIGHT))  # Resize to fit screen
-    frame = pygame.surfarray.make_surface(
-        frame.swapaxes(0, 1)
-    )  # Convert to pygame Surface
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame = cv2.resize(frame, (WIDTH, HEIGHT))
+    frame = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
     return frame
+
 
 def show_highscores(screen):
     import json
@@ -36,7 +34,6 @@ def show_highscores(screen):
     except (FileNotFoundError, json.JSONDecodeError):
         scores = []
 
-    # Convert and sort scores
     def time_in_seconds(score):
         try:
             return int(score["time"].replace("s", ""))
@@ -50,14 +47,12 @@ def show_highscores(screen):
     font_entry = pygame.font.Font(None, 50)
     font_back = pygame.font.Font(None, 36)
 
-    screen.fill((0, 128, 0))  # Background color
+    screen.fill((0, 128, 0))
 
-    # Title
     title_text = font_title.render("Melhores Pontuações", True, (255, 255, 255))
     screen.blit(title_text, title_text.get_rect(center=(WIDTH // 2, 120)))
 
     medals = ["1st - ", "2nd - ", "3rd -"]
-
     if top_scores:
         for i, entry in enumerate(top_scores):
             name = entry.get("name", "Anônimo")
@@ -69,13 +64,11 @@ def show_highscores(screen):
         no_scores = font_entry.render("Nenhuma pontuação salva!", True, (255, 255, 255))
         screen.blit(no_scores, no_scores.get_rect(center=(WIDTH // 2, 300)))
 
-    # Back instructions
     back_text = font_back.render("Pressione [ESC] para voltar", True, (200, 200, 200))
     screen.blit(back_text, back_text.get_rect(center=(WIDTH // 2, HEIGHT - 80)))
 
     pygame.display.flip()
 
-    # Wait for ESC
     waiting = True
     while waiting:
         for event in pygame.event.get():
@@ -108,29 +101,52 @@ class MenuButton(utils.Button):
         )
 
 
+def select_board_mode(screen):
+    """New screen after clicking 'Jogar' with board mode options."""
+    font = pygame.font.Font(None, 60)
+    small_btn = MenuButton("Mini Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), lambda: "small")
+    big_btn = MenuButton("Normal Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), lambda: "big")
+    buttons = [small_btn, big_btn]
+
+    selecting = True
+    while selecting:
+        screen.fill((0, 100, 0))
+        label = font.render("Escolha o tipo de jogo", True, (255, 255, 255))
+        screen.blit(label, label.get_rect(center=(WIDTH // 2, 150)))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            for button in buttons:
+                if button.check_click(event):
+                    return f"START_GAME_{button.callback()}"
+
+        for button in buttons:
+            button.draw(screen)
+
+        pygame.display.flip()
+
+
 def menu():
-    # Initialize pygame here if it's not already initialized
     if not pygame.get_init():
         pygame.init()
 
-    # Create font after pygame is initialized
     font = pygame.font.Font(None, 50)
-
-    # Create the video capture object
     video_path = "resources/background.mp4"
     cap = cv2.VideoCapture(video_path)
+
     if not cap.isOpened():
         print("Error: Could not open video file")
         pygame.quit()
         return
 
-    # Set up the screen
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Baker's Dozen")
 
-    # Create buttons with fresh callbacks
+    # Button callbacks
     def start_game():
-        return "START_GAME"
+        return select_board_mode(screen)
 
     def show_help():
         print("Help not implemented.")
@@ -146,19 +162,16 @@ def menu():
     buttons = [
         MenuButton("Jogar", (WIDTH // 2 - BUTTON_WIDTH // 2, 250), start_game),
         MenuButton("Ajuda", (WIDTH // 2 - BUTTON_WIDTH // 2, 350), show_help),
-        MenuButton(
-            "Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 450), show_high_score
-        ),
+        MenuButton("Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 450), show_high_score),
         MenuButton("Sair", (WIDTH // 2 - BUTTON_WIDTH // 2, 550), quit_game),
     ]
 
     running = True
     action = None
 
-    # Main menu loop
     while running:
-        frame_surface = get_video_frame(cap)  # Get video frame
-        screen.blit(frame_surface, (0, 0))  # Draw video as background
+        frame_surface = get_video_frame(cap)
+        screen.blit(frame_surface, (0, 0))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -166,37 +179,34 @@ def menu():
                 action = "QUIT"
                 break
 
-            # Check buttons
             for button in buttons:
                 if button.check_click(event):
                     result = button.callback()
-                    if result == "START_GAME":
+                    if result and result.startswith("START_GAME"):
+                        mode = result.split("_")[-1]
+                        action = f"START_GAME_{mode}"
                         running = False
-                        action = "START_GAME"
                     elif result == "QUIT":
                         running = False
                         action = "QUIT"
 
-        # Draw buttons
         for button in buttons:
             button.draw(screen)
 
         pygame.display.flip()
 
-    # Clean up resources
-    cap.release()  # Release video
-
-    # Return the action to take
+    cap.release()
     return action
 
 
 if __name__ == "__main__":
     try:
         action = menu()
-        if action == "START_GAME":
-            g.main()
+        if action and action.startswith("START_GAME"):
+            mode = action.split("_")[-1]
+            g.main(board_mode=mode)
     except Exception as e:
         print("Menu crashed:", e)
     finally:
         pygame.quit()
-        sys.exit(0)  # Always exit cleanly, don't crash run.py
+        sys.exit(0)

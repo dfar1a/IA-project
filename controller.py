@@ -107,42 +107,96 @@ def create_deck() -> tuple[list[CardController], bytes]:
 
     return shuffled_deck, seed
 
+def create_mini_deck() -> list[CardController]:
+    # Create all cards from Ace (1) to 3 for all 4 suits → total 12 cards
+    deck = [
+        CardController(c.CardValue(i // 4 + 1), c.CardSuite(i % 4)) for i in range(12)
+    ]
+
+    # Create the 4s (one per suit)
+    fours = [
+        CardController(c.CardValue(4), c.CardSuite(suite))
+        for suite in c.CardSuite.get_suites()
+    ]
+
+    # Pick unique positions in deck to insert 4s
+    pos = set()
+    for i in range(4):
+        choice = r.randrange(0, 16, 4)
+        while choice in pos:
+            choice += 1
+        pos.add(choice)
+
+    # Prepare final deck of 16 cards
+    shuffled_deck = [None] * 16
+
+    for i, p in enumerate(pos):
+        shuffled_deck[p] = fours[i]
+
+    r.shuffle(deck)
+
+    i = 0
+    for j in range(len(shuffled_deck)):
+        if shuffled_deck[j] is None:
+            shuffled_deck[j] = deck[i]
+            i += 1
+
+    return shuffled_deck
+
 
 class BoardController:
 
-    def __init__(self):
-
+    def __init__(self,board_mode="big"):
+        self.board_mode = board_mode 
         column_width = v.CardView.width + 20  # Padding between columns
         row_spacing = v.CardView.height * 2.5  # More space between rows
         start_x = (WIDTH - column_width * 7) / 2
         start_y = HEIGHT / 8  # More space at the top
         foundation_x = start_x + column_width * 7 + 50  # More space from columns
         foundation_y = start_y
-
+        print(f"[DEBUG] BoardController initialized with mode: {self.board_mode}")
         self.moves = 0
 
         # Shffle all cards except the kings
 
-        deck, self.seed = create_deck()
+        if board_mode == "small":
+            deck = create_mini_deck()
+            assert len(deck) == 16, f"[ERROR] Mini deck must have 16 cards, got {len(deck)}"
+            self.columns = [
+                ColumnController(
+                    deck[i * 4: i * 4 + 4],
+                    (start_x + i * column_width, start_y),
+                )
+                for i in range(4)
+            ]
+            self.foundations = [
+                FoundationController(
+                    (foundation_x, foundation_y + i * (v.CardView.height + 30))
+                )
+                for i in range(4)
+            ]
 
-        self.columns = [
-            ColumnController(
-                deck[i * 4 : i * 4 + 4],
-                (start_x + (i % 7) * column_width, start_y + (i // 7) * row_spacing),
-            )
-            for i in range(13)
-        ]
-
-        self.foundations = [
-            FoundationController(
-                (foundation_x, foundation_y + i * (v.CardView.height + 30))
-            )
-            for i in range(4)
-        ]
+        else:
+            deck = create_deck()
+            assert len(deck) == 52, f"[ERROR] Big deck must have 52 cards, got {len(deck)}"
+            self.columns = [
+                ColumnController(
+                    deck[i * 4 : i * 4 + 4],
+                    (start_x + (i % 7) * column_width, start_y + (i // 7) * row_spacing),
+                )
+                for i in range(13)
+            ]
+            self.foundations = [
+                FoundationController(
+                    (foundation_x, foundation_y + i * (v.CardView.height + 30))
+                )
+                for i in range(4)
+            ]
 
         self.model = b.Board(
             [column.model for column in self.columns],
             [foundation.model for foundation in self.foundations],
+            mode=board_mode
         )
         self.view = v.BoardView(
             [column.view for column in self.columns],
@@ -208,6 +262,7 @@ class BoardController:
             self.model = b.Board(
                 [col.model for col in self.columns],
                 [f.model for f in self.foundations],
+                mode=self.board_mode
             )
 
             return True
@@ -216,13 +271,12 @@ class BoardController:
         return False
 
     def is_game_won_visual(self) -> bool:
-        """Only return True if all foundations show a King on top (visually)."""
-        from cards import CardValue
-
-        for foundation in self.foundations:
-            if not foundation.cards:
-                return False
-            top_card = foundation.cards[-1].model
-            if top_card.cardValue.value != CardValue.king:
-                return False
+        if self.board_mode == "small":
+            for foundation in self.foundations:
+                if not foundation.cards or foundation.cards[-1].model.cardValue.value != 4:
+                    return False
+        else:
+            for foundation in self.foundations:
+                if not foundation.cards or foundation.cards[-1].model.cardValue.value != c.CardValue.king:
+                    return False
         return True

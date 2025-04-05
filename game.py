@@ -13,13 +13,15 @@ HEIGHT = 1000
 
 
 class SolitaireGame:
-    def __init__(self, use_ai=False):
+    def __init__(self, use_ai=False, board_mode="big"):
         # Game state variables
+        #print(f"[DEBUG] SolitaireGame starting with board_mode: {board_mode}")
         self.use_ai = use_ai
         self.running = True
         self.return_to_menu = False
         self.ai_paused = False
         self.game_paused = False
+        self.board_mode = board_mode
 
         # Card interaction variables
         self.selected_card = None
@@ -36,7 +38,7 @@ class SolitaireGame:
         self.game_stopwatch.start()
 
         # Game components
-        self.game_board = control.BoardController()
+        self.game_board = control.BoardController(board_mode=self.board_mode)
         self.game_bar = v.GameBar(self)
 
         # AI solver
@@ -69,7 +71,7 @@ class SolitaireGame:
 
     def new_game(self):
         """Reset the game to a new state"""
-        self.game_board = control.BoardController()
+        self.game_board = control.BoardController(board_mode=self.board_mode)
         self.game_stopwatch.reset()
         self.game_stopwatch.start()
         self.solver.stop()
@@ -243,7 +245,7 @@ class SolitaireGame:
         font = pygame.font.Font(None, 80)
         small_font = pygame.font.Font(None, 40)
 
-        message = font.render("🎉 You Won! 🎉", True, (255, 255, 0))
+        message = font.render("You Won!", True, (255, 255, 0))
         message_rect = message.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 180))
 
         # Input setup
@@ -350,16 +352,18 @@ class SolitaireGame:
             self.cleanup()
 
 
-def main():
+def main(board_mode="big"):
     """Main game entry point"""
     # Initialize pygame if it's not already initialized
     if not pygame.get_init():
         pygame.init()
 
+    current_mode = board_mode
+
     keep_running = True
     while keep_running:
         # Create and run game
-        game = SolitaireGame()
+        game = SolitaireGame(board_mode=current_mode)
         game.run()
 
         # Check if we should return to the main menu
@@ -371,8 +375,9 @@ def main():
             action = menu.menu()
 
             # Process the menu's return action
-            if action == "START_GAME":
+            if action and action.startswith("START_GAME_"):
                 # We'll start a new game in the next loop iteration
+                current_mode = action.split("_")[-1]
                 continue
             elif action == "QUIT":
                 # Exit the game loop

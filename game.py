@@ -7,6 +7,7 @@ import utils
 from stopwatch import Stopwatch
 from pause_menu import PauseMenu
 import json
+
 # Increased window size for better spacing and proper alignment
 WIDTH = 1400
 HEIGHT = 1000
@@ -15,7 +16,7 @@ HEIGHT = 1000
 class SolitaireGame:
     def __init__(self, use_ai=False, board_mode="big"):
         # Game state variables
-        #print(f"[DEBUG] SolitaireGame starting with board_mode: {board_mode}")
+        # print(f"[DEBUG] SolitaireGame starting with board_mode: {board_mode}")
         self.use_ai = use_ai
         self.running = True
         self.return_to_menu = False
@@ -42,7 +43,9 @@ class SolitaireGame:
         self.game_bar = v.GameBar(self)
 
         # AI solver
-        self.solver = AsyncSolver(self.game_board)
+        self.solver = AsyncSolver(
+            self.game_board, "dfs" if board_mode == "small" else "bfs"
+        )
         self.solver.start()
         self.board_state = hash(self.game_board.model)
 
@@ -275,10 +278,18 @@ class SolitaireGame:
             pygame.draw.rect(self.screen, input_color, input_box, 2)
 
             # Draw buttons
-            pygame.draw.rect(self.screen, (255, 215, 0), play_button_rect, border_radius=10)
-            pygame.draw.rect(self.screen, (255, 165, 0), menu_button_rect, border_radius=10)
-            self.screen.blit(play_text, play_text.get_rect(center=play_button_rect.center))
-            self.screen.blit(menu_text, menu_text.get_rect(center=menu_button_rect.center))
+            pygame.draw.rect(
+                self.screen, (255, 215, 0), play_button_rect, border_radius=10
+            )
+            pygame.draw.rect(
+                self.screen, (255, 165, 0), menu_button_rect, border_radius=10
+            )
+            self.screen.blit(
+                play_text, play_text.get_rect(center=play_button_rect.center)
+            )
+            self.screen.blit(
+                menu_text, menu_text.get_rect(center=menu_button_rect.center)
+            )
 
             pygame.display.update()
 
@@ -305,7 +316,6 @@ class SolitaireGame:
                         self.save_score(name.strip() or "Anonymous", time_str)
                         self.return_to_main_menu()
                         return
-
 
     def save_score(self, name, time_str):
         data = {"name": name, "time": time_str}
@@ -341,10 +351,13 @@ class SolitaireGame:
                 pygame.display.update()
                 self.clock.tick(60)
 
-               # Add this inside your main loop, after everything is drawn:
+                # Add this inside your main loop, after everything is drawn:
                 # Check both model AND view are fully synced to Kings on foundations
-                if self.game_board.model.is_game_won() and self.game_board.is_game_won_visual():
-                    self.game_stopwatch.stop() 
+                if (
+                    self.game_board.model.is_game_won()
+                    and self.game_board.is_game_won_visual()
+                ):
+                    self.game_stopwatch.stop()
                     self.display_win_message()
 
         finally:

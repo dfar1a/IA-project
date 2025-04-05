@@ -1,6 +1,6 @@
-from game import Game
 from utils import is_solved, get_state_hash
 import copy
+
 
 def dfs_limited(game, max_depth, visited, path, depth_level=0):
     indent = "  " * depth_level  # para debug visual
@@ -35,7 +35,7 @@ def dfs_limited(game, max_depth, visited, path, depth_level=0):
                     max_depth - 1,
                     visited.copy(),
                     path + [((i, j), card)],
-                    depth_level + 1
+                    depth_level + 1,
                 )
                 if result:
                     return result
@@ -50,12 +50,13 @@ def dfs_limited(game, max_depth, visited, path, depth_level=0):
                     max_depth - 1,
                     visited.copy(),
                     path + [((i, f), card)],
-                    depth_level + 1
+                    depth_level + 1,
                 )
                 if result:
                     return result
 
     return None
+
 
 def dfs_solver(initial_game):
     depth = 1

@@ -5,7 +5,7 @@ import os
 import gc
 
 Times = 5000
-SolverTypes = ["bfs-single_core"]
+SolverTypes = ["gready-single-core"]
 NUM_PROCESSES = (multiprocessing.cpu_count() - 1) // 2
 
 csv_lock = multiprocessing.Lock()
@@ -36,12 +36,11 @@ def solver_worker(dummy_arg=None):
 
     for solver_type in SolverTypes:
         for _ in range(Times // (multiprocessing.cpu_count() - 1)):
-            solver_type = "bfs-single_core"
 
             board = controller.BoardController()
             seed = board.get_seed()
 
-            solver = Solver.AsyncSolver(board, "bfs-single_core")
+            solver = Solver.AsyncSolver(board, solver_type)
             solver.start()
 
             while solver.is_running():

@@ -5,10 +5,14 @@ import pickle
 import time
 import os
 import signal
-import gc
 
 # Global tracking for processes
 _all_processes = []  # (process, stop_event) pairs
+
+
+class TreeNode(solver.TreeNode):
+    def evaluate(self, state):
+        return super().evaluate(state) + self.actualCost
 
 
 def terminate_all_processes():
@@ -69,6 +73,7 @@ def bfs_core(
     on_solution_fn=None,
     process_id=0,
     visit_nodes=-1,
+    a_star=False,
 ):
     """[:max_moves_per_state]led with solution node if found
         process_id: ID for logging
@@ -130,7 +135,12 @@ def bfs_core(
                 visited_states.add(state_hash)
 
                 # Create new node and link to parent
-                node = solver.TreeNode(state, current_board)
+                node = (
+                    TreeNode(state, current_board)
+                    if a_star
+                    else solver.TreeNode(state, current_board)
+                )
+
                 current_board.add_child(node, move)
 
                 # Add to queue
@@ -279,7 +289,9 @@ def bfs_distributed(root: solver.TreeNode) -> solver.TreeNode | None:
     return solution
 
 
-def bfs_single_core(start_node: solver.TreeNode) -> solver.TreeNode | None:
+def bfs_single_core(
+    start_node: solver.TreeNode, a_star: bool
+) -> solver.TreeNode | None:
     """Single-core BFS implementation that runs in the current process"""
     print("Using single-core BFS")
 
@@ -289,7 +301,11 @@ def bfs_single_core(start_node: solver.TreeNode) -> solver.TreeNode | None:
 
     # Run the core BFS algorithm directly
     return bfs_core(
-        start_node, max_states=10**5 * 3, stop_check_fn=should_stop, process_id="single"
+        start_node,
+        max_states=10**5 * 3,
+        stop_check_fn=should_stop,
+        process_id="single",
+        a_star=a_star,
     )
 
 

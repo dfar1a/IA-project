@@ -21,31 +21,57 @@ class TreeNode:
             (found.get_suite().value): (found.next()) for found in state.foundations
         }
 
-        lenFounds = [len(found.cards) for found in state.foundations]
-        sumLen = sum(lenFounds)
-        minLen = min(lenFounds)
-        maxLen = max(lenFounds)
+        randomness = 4
+        unorderedPenalty = 1
+        higherSameSuitPenalty = 8
+        fullOrderBonus = 0
 
         for column in state.columns:
+            orderedFlag = True
+            unorderedCount = 0
+            prevSuits = {
+                "hearts": None,
+                "diamonds": None,
+                "clubs": None,
+                "spades": None,
+            }
+            prevValue = None
+
             cards = column.cards
 
+            if (len(cards)==0):
+                continue
+            
+
+
             for i, card in enumerate(cards):
-                nextCard = nextCards.get(card.cardSuite.value)
-                if nextCard is None:
-                    nextCard = nextCards.get(c.CardSuite.any)
-                if card.cardValue.value - nextCard.cardValue.value < (
-                    len(cards) - i - 1
-                ):
-                    score += (
-                        len(cards)
-                        - i
-                        - 1
-                        - (card.cardValue.value - nextCard.cardValue.value)
-                    )
+                prevSuit = prevSuits[card.cardSuite.__str__()]
 
-        score += 13 * 4 - sumLen
+                #Gives a penalty if there are two cards of the same suit in the same column where the higher card is above the lower card
+                if prevSuit == None:
+                    pass
+                elif prevSuit < card.cardValue.value:
+                    score += higherSameSuitPenalty
+                else:
+                    pass
+                prevSuits[card.cardSuite.__str__()] = card.cardValue.value
 
-        return score + random.random() + self.actualCost
+                #Checks if the column is fully ordered (high to low) and gives penalties according to the depth of the unordered section
+                if prevValue==None:
+                    prevValue=card.cardValue.value
+                elif orderedFlag & (prevValue<card.cardValue.value):
+                    orderedFlag = False
+                    unorderedCount = 1
+                    score += unorderedCount * unorderedPenalty
+                if orderedFlag == False:
+                    unorderedCount += 1
+                    score += unorderedCount * unorderedPenalty
+
+            if orderedFlag:
+                score -= fullOrderBonus
+        print(score)
+
+        return score + random.random()*randomness + self.actualCost
 
     def __init__(self, state: b.Board, parent=None):
         self.state = state

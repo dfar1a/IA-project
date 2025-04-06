@@ -129,7 +129,8 @@ def select_board_mode(screen):
         for button in buttons:
             button.draw(screen)
 
-        pygame.display.flip()
+        pygame.time.wait(50)
+        pygame.display.update()
 
 
 def menu():

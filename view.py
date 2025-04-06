@@ -287,8 +287,8 @@ class GameBar:
         self.context = context
         icons = {"play-pause": pygame.image.load("resources/icons/play_pause.png")}
         self.buttons = [
-            GameBar.Button("Auto-complete", 50, self.context.toggle_ai),
-            GameBar.Button("Hint", 210, self.context.set_hint),
+            GameBar.Button("Auto-complete", 50, self.context.toggle_ai, enabled=False),
+            GameBar.Button("Hint", 210, self.context.set_hint, enabled=False),
             GameBar.Button(
                 "",
                 WIDTH - 100,
@@ -310,8 +310,8 @@ class GameBar:
         ]
 
     def ai_ready(self, state: bool) -> None:
+        self.buttons[0].set_enabled(state)
         self.buttons[1].set_enabled(state)
-        self.buttons[2].set_enabled(state)
 
     def draw(self, screen):
         pygame.draw.rect(screen, self.background, self.bar)

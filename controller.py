@@ -164,7 +164,7 @@ class BoardController:
         # Shffle all cards except the kings
 
         if board_mode == "small":
-            deck = create_mini_deck()
+            deck = create_mini_deck(seed)
             assert (
                 len(deck) == 16
             ), f"[ERROR] Mini deck must have 16 cards, got {len(deck)}"

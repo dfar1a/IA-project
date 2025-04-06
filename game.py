@@ -1,5 +1,4 @@
 import pygame
-import cards as c
 import view as v
 import controller as control
 from solver import AsyncSolver, execute_next_move, get_next_move

@@ -104,8 +104,12 @@ class MenuButton(utils.Button):
 def select_board_mode(screen):
     """New screen after clicking 'Jogar' with board mode options."""
     font = pygame.font.Font(None, 60)
-    small_btn = MenuButton("Mini Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), lambda: "small")
-    big_btn = MenuButton("Normal Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), lambda: "big")
+    small_btn = MenuButton(
+        "Mini Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), lambda: "small"
+    )
+    big_btn = MenuButton(
+        "Normal Board", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), lambda: "big"
+    )
     buttons = [small_btn, big_btn]
 
     selecting = True
@@ -132,6 +136,7 @@ def menu():
     if not pygame.get_init():
         pygame.init()
 
+    title_font = pygame.font.Font(None, 80)
     font = pygame.font.Font(None, 50)
     video_path = "resources/background.mp4"
     cap = cv2.VideoCapture(video_path)
@@ -148,10 +153,6 @@ def menu():
     def start_game():
         return select_board_mode(screen)
 
-    def show_help():
-        print("Help not implemented.")
-        return None
-
     def show_high_score():
         show_highscores(screen)
         return None
@@ -160,10 +161,11 @@ def menu():
         return "QUIT"
 
     buttons = [
-        MenuButton("Jogar", (WIDTH // 2 - BUTTON_WIDTH // 2, 250), start_game),
-        MenuButton("Ajuda", (WIDTH // 2 - BUTTON_WIDTH // 2, 350), show_help),
-        MenuButton("Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 450), show_high_score),
-        MenuButton("Sair", (WIDTH // 2 - BUTTON_WIDTH // 2, 550), quit_game),
+        MenuButton("Jogar", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), start_game),
+        MenuButton(
+            "Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), show_high_score
+        ),
+        MenuButton("Sair", (WIDTH // 2 - BUTTON_WIDTH // 2, 500), quit_game),
     ]
 
     running = True
@@ -172,6 +174,19 @@ def menu():
     while running:
         frame_surface = get_video_frame(cap)
         screen.blit(frame_surface, (0, 0))
+
+        # Render the title with a shadow for better visibility against the background
+        title_text = "Baker's Dozen Solitaire"
+        title_shadow = title_font.render(title_text, True, (0, 0, 0))
+        title = title_font.render(title_text, True, (255, 255, 255))
+
+        # Position the title above the buttons
+        title_pos = (WIDTH // 2 - title.get_width() // 2, 180)
+        shadow_pos = (title_pos[0] + 3, title_pos[1] + 3)
+
+        # Draw shadow first, then title on top
+        screen.blit(title_shadow, shadow_pos)
+        screen.blit(title, title_pos)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

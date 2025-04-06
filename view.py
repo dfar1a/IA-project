@@ -287,9 +287,8 @@ class GameBar:
         self.context = context
         icons = {"play-pause": pygame.image.load("resources/icons/play_pause.png")}
         self.buttons = [
-            GameBar.Button("Undo", 50, lambda: print("pressed")),
-            GameBar.Button("Auto-complete", 140, self.context.toggle_ai),
-            GameBar.Button("Hint", 300, self.context.set_hint),
+            GameBar.Button("Auto-complete", 50, self.context.toggle_ai),
+            GameBar.Button("Hint", 210, self.context.set_hint),
             GameBar.Button(
                 "",
                 WIDTH - 100,

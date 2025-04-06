@@ -256,8 +256,7 @@ def bfs_process_worker(start_node, process_id, solution_queue, stop_event):
                 visited_states.add(state_hash)
 
                 # Create new node and link to parent
-                node = solver.TreeNode(state)
-                node.parent = current_board
+                node = solver.TreeNode(state, current_board)
                 current_board.add_child(node, move)
 
                 # Add to queue

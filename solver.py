@@ -39,15 +39,13 @@ class TreeNode:
 
             cards = column.cards
 
-            if (len(cards)==0):
+            if len(cards) == 0:
                 continue
-            
-
 
             for i, card in enumerate(cards):
                 prevSuit = prevSuits[card.cardSuite.__str__()]
 
-                #Gives a penalty if there are two cards of the same suit in the same column where the higher card is above the lower card
+                # Gives a penalty if there are two cards of the same suit in the same column where the higher card is above the lower card
                 if prevSuit == None:
                     pass
                 elif prevSuit < card.cardValue.value:
@@ -56,10 +54,10 @@ class TreeNode:
                     pass
                 prevSuits[card.cardSuite.__str__()] = card.cardValue.value
 
-                #Checks if the column is fully ordered (high to low) and gives penalties according to the depth of the unordered section
-                if prevValue==None:
-                    prevValue=card.cardValue.value
-                elif orderedFlag & (prevValue<card.cardValue.value):
+                # Checks if the column is fully ordered (high to low) and gives penalties according to the depth of the unordered section
+                if prevValue == None:
+                    prevValue = card.cardValue.value
+                elif orderedFlag and (prevValue < card.cardValue.value):
                     orderedFlag = False
                     unorderedCount = 1
                     score += unorderedCount * unorderedPenalty
@@ -71,7 +69,7 @@ class TreeNode:
                 score -= fullOrderBonus
         print(score)
 
-        return score + random.random()*randomness + self.actualCost
+        return score + random.random() * randomness  # + self.actualCost
 
     def __init__(self, state: b.Board, parent=None):
         self.state = state

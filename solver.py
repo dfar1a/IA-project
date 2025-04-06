@@ -161,7 +161,7 @@ class AsyncSolver:
             self.solver_type == "gready-multi-core"
             or self.solver_type == "a*-multi-core"
         ):
-            bfsSolver = importlib.import_module("bfsSolver")
+            bfsSolver = importlib.import_module("greadyBfsSolver")
             signal.signal(signal.SIGTERM, bfsSolver.kill_all)
             solution = bfsSolver.bfs_distributed(v, self.solver_type == "a*-multi-core")
         elif self.solver_type == "idastar":
@@ -178,8 +178,10 @@ class AsyncSolver:
             )
         elif self.solver_type == "dfs":
             dfsSolver = importlib.import_module("dfsSolver")
-            solution = dfsSolver.dfs_solver(initstate)
-
+            solution = dfsSolver.run_dfs(initstate)
+        elif self.solver_type == "bfs":
+            bfsSolver = importlib.import_module("bfsSolver")
+            solution = bfsSolver.run_bfs(v)
         self.stop_time = time.time_ns()
         v = solution
         if solution:

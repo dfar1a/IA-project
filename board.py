@@ -100,7 +100,9 @@ class Foundation:
 
 
 class Board:
-    def __init__(self, columns: tuple[CardColumn], foundations: tuple[Foundation],mode="big"):
+    def __init__(
+        self, columns: tuple[CardColumn], foundations: tuple[Foundation], mode="big"
+    ):
         self.columns = tuple(columns)
         self.foundations = tuple(foundations)
         self.mode = mode
@@ -108,7 +110,7 @@ class Board:
     def copy(self):
         columns = [column.copy() for column in self.columns]
         foundations = [foundation.copy() for foundation in self.foundations]
-        return Board(columns, foundations)
+        return Board(columns, foundations, self.mode)
 
     def is_valid_move_column_to_column(
         self, from_col: CardColumn, to_col: CardColumn
@@ -135,8 +137,7 @@ class Board:
 
         if self.mode == "small":
             return all(
-                f.top() and f.top().cardValue.value == 4
-                for f in self.foundations
+                f.top() and f.top().cardValue.value == 4 for f in self.foundations
             )
         else:
             return all(f.is_full() for f in self.foundations)

@@ -1,72 +1,66 @@
-from utils import is_solved, get_state_hash
-import copy
+import solver
+from heapq import *
+import signal
 
 
-def dfs_limited(game, max_depth, visited, path, depth_level=0):
-    indent = "  " * depth_level  # para debug visual
-    print(f"{indent}🔍 DFS depth={max_depth}, path_len={len(path)}")
+class DFS:
+    def __init__(self, board):
+        self.visited_states = set()
+        self.root = solver.TreeNode(board)
+        self._stop_flag = False
 
-    if is_solved(game.board):
-        print(f"{indent}✅ Solução encontrada!")
-        return path
+    def set_stop_flag(self):
+        self._stop_flag = True
 
-    if max_depth == 0:
-        return None
+    def should_stop(self):
+        # Check both our internal flag and AsyncSolver's flag
+        return self._stop_flag or solver.AsyncSolver._stop
 
-    state_hash = get_state_hash(game.board)
-    if state_hash in visited:
-        return None
-    visited.add(state_hash)
+    def dfs(self, root: solver.TreeNode) -> list[solver.TreeNode]:
+        move_card = {
+            solver.MoveType.foundation: solver.move_col_foundation,
+            solver.MoveType.column: solver.move_col_col,
+        }
+        self.visited_states.add(hash(root.state))
+        pq = []
 
-    for i, col in enumerate(game.board.columns):
-        if col.is_empty():
-            continue
-        card = col.top()
+        if root.state.is_game_won():
+            self.set_stop_flag()
+            return root
 
-        # Tenta coluna → coluna
-        for j in range(len(game.board.columns)):
-            if i == j:
-                continue
-            new_game = copy.deepcopy(game)
-            if new_game.move_card(i, j):
-                print(f"{indent}➡️ {card} de coluna {i} para coluna {j}")
-                result = dfs_limited(
-                    new_game,
-                    max_depth - 1,
-                    visited.copy(),
-                    path + [((i, j), card)],
-                    depth_level + 1,
-                )
-                if result:
-                    return result
+        # Check if we should stop
+        if self.should_stop():
+            return None
 
-        # Tenta coluna → foundation
-        for f, foundation in enumerate(game.board.foundations):
-            new_game = copy.deepcopy(game)
-            if new_game.move_card_to_foundation(i, f):
-                print(f"{indent}🏛️ {card} de coluna {i} para fundação {f}")
-                result = dfs_limited(
-                    new_game,
-                    max_depth - 1,
-                    visited.copy(),
-                    path + [((i, f), card)],
-                    depth_level + 1,
-                )
-                if result:
-                    return result
+        moves = solver.get_possible_moves(root.state)
 
-    return None
+        for move in moves:
+            # Check if we should stop
+            if self.should_stop():
+                return None
+
+            state = move_card[move[0]](root.state, move[1], move[2])
+
+            if state is not None and hash(state) not in self.visited_states:
+                node = solver.TreeNode(state, root)
+                root.add_child(node, move)
+                pq.append(node)
+
+        sol = None
+        while pq and not self.should_stop():
+            node = pq.pop()
+            sol = self.dfs(node) if sol is None else sol
+
+        return sol
 
 
-def dfs_solver(initial_game):
-    depth = 1
-    while depth < 100:
-        print(f"\n🔁 Tentativa com profundidade {depth}")
-        visited = set()
-        result = dfs_limited(copy.deepcopy(initial_game), depth, visited, [], 0)
-        if result is not None:
-            print(f"🎯 Solução encontrada com profundidade {depth}!")
-            return result
-        depth += 1
-    print("❌ Nenhuma solução encontrada")
-    return None
+# This function is used by the AsyncSolver to run IDA*
+def run_dfs(board):
+    solver = DFS(board)
+
+    def signal_handler(*args):
+        solver.set_stop_flag()
+
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    return solver.dfs(solver.root)

@@ -109,7 +109,7 @@ class AsyncSolver:
     learn = load_data_pickle("learn.data")
     _stop = False
 
-    def __init__(self, game_board, solver_type="bfs"):
+    def __init__(self, game_board, solver_type="gready-multi-core"):
         self.initstate = game_board.model
         self.solution = None
         self.process = None
@@ -157,10 +157,13 @@ class AsyncSolver:
 
         solution = None
         self.start_time = time.time_ns()
-        if self.solver_type == "bfs":
+        if (
+            self.solver_type == "gready-multi-core"
+            or self.solver_type == "a*-multi-core"
+        ):
             bfsSolver = importlib.import_module("bfsSolver")
             signal.signal(signal.SIGTERM, bfsSolver.kill_all)
-            solution = bfsSolver.bfs_distributed(v)
+            solution = bfsSolver.bfs_distributed(v, self.solver_type == "a*-multi-core")
         elif self.solver_type == "idastar":
             idastar = importlib.import_module("idaStarSolver")
             ida = idastar.IDAStar(initstate)

@@ -1,3 +1,4 @@
+from typing import Optional
 import cards as c
 import view as v
 import random as r
@@ -72,7 +73,7 @@ class FoundationController:
         return False
 
 
-def create_deck() -> tuple[list[CardController], bytes]:
+def create_deck(seed: bytes) -> tuple[list[CardController], bytes]:
     deck = [
         CardController(c.CardValue(i // 4 + 1), c.CardSuite(i % 4)) for i in range(48)
     ]
@@ -94,7 +95,6 @@ def create_deck() -> tuple[list[CardController], bytes]:
         shuffled_deck[p] = kings[i]
         i += 1
 
-    seed = r.randbytes(8)
     r.seed(seed)
     r.shuffle(deck)
 
@@ -105,11 +105,13 @@ def create_deck() -> tuple[list[CardController], bytes]:
             shuffled_deck[j] = deck[i]
             i += 1
 
-    return shuffled_deck, seed
+    return shuffled_deck
 
 
-def create_mini_deck() -> list[CardController]:
+def create_mini_deck(seed: bytes) -> list[CardController]:
     # Create all cards from Ace (1) to 3 for all 4 suits → total 12 cards
+    r.seed(seed)
+
     deck = [
         CardController(c.CardValue(i // 4 + 1), c.CardSuite(i % 4)) for i in range(12)
     ]
@@ -147,7 +149,7 @@ def create_mini_deck() -> list[CardController]:
 
 class BoardController:
 
-    def __init__(self, board_mode="big"):
+    def __init__(self, board_mode="big", seed: Optional[bytes] = r.randbytes(8)):
         self.board_mode = board_mode
         column_width = v.CardView.width + 20  # Padding between columns
         row_spacing = v.CardView.height * 2.5  # More space between rows
@@ -157,6 +159,7 @@ class BoardController:
         foundation_y = start_y
         print(f"[DEBUG] BoardController initialized with mode: {self.board_mode}")
         self.moves = 0
+        self.seed = seed
 
         # Shffle all cards except the kings
 
@@ -180,7 +183,7 @@ class BoardController:
             ]
 
         else:
-            deck, self.seed = create_deck()
+            deck = create_deck(seed)
             assert (
                 len(deck) == 52
             ), f"[ERROR] Big deck must have 52 cards, got {len(deck)}"

@@ -166,7 +166,7 @@ def bfs_core(
 
 
 def expand_initial_nodes(
-    root: solver.TreeNode, num_nodes: int
+    root: solver.TreeNode, num_nodes: int, a_star: bool
 ) -> list[solver.TreeNode]:
     """Expand the root node to create starting points for different processes"""
 
@@ -175,13 +175,14 @@ def expand_initial_nodes(
         root,
         max_states=num_nodes * 10,  # Higher limit to find enough nodes
         visit_nodes=num_nodes,
+        a_star=a_star,
     )
 
     # If we couldn't expand enough, just use what we have
     return initial_nodes if initial_nodes else [root]
 
 
-def bfs_process_worker(start_node, process_id, solution_queue, stop_event):
+def bfs_process_worker(start_node, process_id, solution_queue, stop_event, a_star):
     """Worker process that performs BFS from a given starting node"""
     print(f"Process {process_id} starting BFS from depth {start_node.actualCost}")
 
@@ -212,10 +213,11 @@ def bfs_process_worker(start_node, process_id, solution_queue, stop_event):
         stop_check_fn=should_stop,
         on_solution_fn=on_solution,
         process_id=process_id,
+        a_star=a_star,
     )
 
 
-def bfs_distributed(root: solver.TreeNode) -> solver.TreeNode | None:
+def bfs_distributed(root: solver.TreeNode, a_star: bool) -> solver.TreeNode | None:
     """BFS implementation that distributes different starting nodes across processes"""
     print("Using distributed BFS with multiprocessing")
     global _all_processes
@@ -227,7 +229,7 @@ def bfs_distributed(root: solver.TreeNode) -> solver.TreeNode | None:
     num_processes = max(1, (multiprocessing.cpu_count() - 1) // 2)
 
     # Create initial nodes for distribution
-    initial_nodes = expand_initial_nodes(root, num_processes)
+    initial_nodes = expand_initial_nodes(root, num_processes, a_star)
 
     # Check for immediate solution in initial nodes
     for node in initial_nodes:
@@ -243,7 +245,8 @@ def bfs_distributed(root: solver.TreeNode) -> solver.TreeNode | None:
         # Start a BFS process for each initial node
         for i, node in enumerate(initial_nodes):
             process = multiprocessing.Process(
-                target=bfs_process_worker, args=(node, i, solution_queue, stop_event)
+                target=bfs_process_worker,
+                args=(node, i, solution_queue, stop_event, a_star),
             )
             process.daemon = True
             process.start()

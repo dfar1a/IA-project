@@ -7,10 +7,12 @@ import utils
 from stopwatch import Stopwatch
 from pause_menu import PauseMenu
 import json
+import random
 
 # Increased window size for better spacing and proper alignment
 WIDTH = 1400
 HEIGHT = 1000
+SEED = random.randbytes(8)  # Card Shuffle seed
 
 
 class SolitaireGame:
@@ -39,12 +41,12 @@ class SolitaireGame:
         self.game_stopwatch.start()
 
         # Game components
-        self.game_board = control.BoardController(board_mode=self.board_mode)
+        self.game_board = control.BoardController(board_mode=self.board_mode, seed=SEED)
         self.game_bar = v.GameBar(self)
 
         # AI solver
         self.solver = AsyncSolver(
-            self.game_board, "dfs" if board_mode == "small" else "bfs"
+            self.game_board, "dfs" if board_mode == "small" else "gready-multi-core"
         )
         self.solver.start()
         self.board_state = hash(self.game_board.model)

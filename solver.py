@@ -21,9 +21,9 @@ class TreeNode:
             (found.get_suite().value): (found.next()) for found in state.foundations
         }
 
-        randomness = 4
+        randomness = 30
         unorderedPenalty = 1
-        higherSameSuitPenalty = 8
+        higherSameSuitPenalty = 2
         fullOrderBonus = 0
 
         for column in state.columns:
@@ -57,7 +57,7 @@ class TreeNode:
                 # Checks if the column is fully ordered (high to low) and gives penalties according to the depth of the unordered section
                 if prevValue == None:
                     prevValue = card.cardValue.value
-                elif orderedFlag and (prevValue < card.cardValue.value):
+                elif orderedFlag and (prevValue != card.prev()):
                     orderedFlag = False
                     unorderedCount = 1
                     score += unorderedCount * unorderedPenalty

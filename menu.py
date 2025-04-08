@@ -99,7 +99,13 @@ class MenuButton(utils.Button):
                 "rounded_corners": 10,
             },
         )
-
+        
+    def check_click(self, event):
+        """Override to ensure the callback is triggered on mouse release."""
+        if event.type == pygame.MOUSEBUTTONUP and self.rect.collidepoint(event.pos):
+            self.callback()  # Execute the callback directly
+            return True
+        return False
 
 def select_board_mode(screen):
     """New screen after clicking 'Jogar' with board mode options."""
@@ -124,6 +130,7 @@ def select_board_mode(screen):
                 sys.exit()
             for button in buttons:
                 if button.check_click(event):
+                    selecting = False
                     return f"START_GAME_{button.callback()}"
 
         for button in buttons:
@@ -131,6 +138,8 @@ def select_board_mode(screen):
 
         pygame.time.wait(50)
         pygame.display.update()
+
+
 
 
 def menu():
@@ -150,10 +159,6 @@ def menu():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Baker's Dozen")
 
-    # Button callbacks
-    def start_game():
-        return select_board_mode(screen)
-
     def show_high_score():
         show_highscores(screen)
         return None
@@ -161,14 +166,19 @@ def menu():
     def quit_game():
         return "QUIT"
 
+    # Main menu buttons
     buttons = [
-        MenuButton("Jogar", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), start_game),
-        MenuButton(
-            "Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), show_high_score
-        ),
+        MenuButton("Jogar", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), lambda: "SELECT_MODE"),
+        MenuButton("Pontuação Máx.", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), show_high_score),
         MenuButton("Sair", (WIDTH // 2 - BUTTON_WIDTH // 2, 500), quit_game),
     ]
 
+    # Board mode buttons (shown after "Jogar")
+    small_btn = MenuButton("Small board", (WIDTH // 2 - BUTTON_WIDTH // 2, 300), lambda: "START_GAME_small")
+    big_btn = MenuButton("Normal board", (WIDTH // 2 - BUTTON_WIDTH // 2, 400), lambda: "START_GAME_big")
+    mode_buttons = [small_btn, big_btn]
+
+    in_mode_selection = False
     running = True
     action = None
 
@@ -176,17 +186,12 @@ def menu():
         frame_surface = get_video_frame(cap)
         screen.blit(frame_surface, (0, 0))
 
-        # Render the title with a shadow for better visibility against the background
+        # Render the title
         title_text = "Baker's Dozen Solitaire"
         title_shadow = title_font.render(title_text, True, (0, 0, 0))
         title = title_font.render(title_text, True, (255, 255, 255))
-
-        # Position the title above the buttons
         title_pos = (WIDTH // 2 - title.get_width() // 2, 180)
-        shadow_pos = (title_pos[0] + 3, title_pos[1] + 3)
-
-        # Draw shadow first, then title on top
-        screen.blit(title_shadow, shadow_pos)
+        screen.blit(title_shadow, (title_pos[0] + 3, title_pos[1] + 3))
         screen.blit(title, title_pos)
 
         for event in pygame.event.get():
@@ -195,24 +200,28 @@ def menu():
                 action = "QUIT"
                 break
 
-            for button in buttons:
-                if button.check_click(event):
+            active_buttons = mode_buttons if in_mode_selection else buttons
+            for button in active_buttons:
+                if button.handle_event(event):
                     result = button.callback()
-                    if result and result.startswith("START_GAME"):
-                        mode = result.split("_")[-1]
-                        action = f"START_GAME_{mode}"
+                    if result == "SELECT_MODE":
+                        in_mode_selection = True
+                    elif result and result.startswith("START_GAME_"):
+                        action = result
                         running = False
                     elif result == "QUIT":
                         running = False
                         action = "QUIT"
 
-        for button in buttons:
+        active_buttons = mode_buttons if in_mode_selection else buttons
+        for button in active_buttons:
             button.draw(screen)
 
         pygame.display.flip()
 
     cap.release()
     return action
+
 
 
 if __name__ == "__main__":
@@ -226,3 +235,5 @@ if __name__ == "__main__":
     finally:
         pygame.quit()
         sys.exit(0)
+
+
